@@ -12,20 +12,21 @@ import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.EnumMap;
 
-public class MyPacMan extends Controller<MOVE>
-{
+public class MyPacMan extends Controller<MOVE>{
 
     private int C = 15;
 
     private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
 
+    //Evaluates game state
     private int score(Game state){
 
 	int pnode = state.getPacmanCurrentNodeIndex();
 	int shortest2inedible = Integer.MAX_VALUE;
 	int shortest2edible = Integer.MAX_VALUE;
 
+	//Find distances to ghosts
 	for(GHOST g: GHOST.values()){
 	    int gnode = state.getGhostCurrentNodeIndex(g);
 	    int dist = state.getShortestPathDistance(pnode,gnode);
@@ -35,15 +36,57 @@ public class MyPacMan extends Controller<MOVE>
 		{ shortest2inedible = dist; }
 	}
 
-	return state.getScore + shortest2inedible - shortest2edible;
+	//Complete evaluation based on ghosts & score
+	if (shortest2edible == Integer.MAX_VALUE)
+	    { return state.getScore() + shortest2inedible; }
+	else if (shortest2inedible == Integer.MAX_VALUE)
+	    { return state.getScore() - shortest2edible; }
+	return state.getScore() + shortest2inedible - shortest2edible;
+    }
+
+    private void findGhostMoves(ArrayList<EnumMap<GHOST,MOVE>> ghostMoves,
+				ArrayList<MOVE[]> ghostMoveList){
+	EnumMap<GHOST,MOVE> t;
+
+	for(int j = 0; j < ghostMoveList.get(0).length; j++){
+	    for(int k = 0; k < ghostMoveList.get(1).length; k++){
+		for(int l = 0; l < ghostMoveList.get(2).length; l++){
+		    for(int m = 0; m < ghostMoveList.get(3).length; m++){
+
+			t = new EnumMap<GHOST,MOVE>(GHOST.class);
+			t.put(GHOST.values()[0],ghostMoveList.get(0)[j]);
+			t.put(GHOST.values()[1],ghostMoveList.get(1)[k]);
+			t.put(GHOST.values()[2],ghostMoveList.get(2)[l]);
+			t.put(GHOST.values()[3],ghostMoveList.get(3)[m]);
+			ghostMoves.add(t);
+		    }
+		}
+	    }
+	}
+
+	if (ghostMoves.size() == 0) {
+	    t = new EnumMap<GHOST,MOVE>(GHOST.class);
+	    t.put(GHOST.values()[0],MOVE.NEUTRAL);
+	    t.put(GHOST.values()[1],MOVE.NEUTRAL);
+	    t.put(GHOST.values()[2],MOVE.NEUTRAL);
+	    t.put(GHOST.values()[3],MOVE.NEUTRAL);
+	    ghostMoves.add(t);
+	}
+
     }
 
     private MOVE bfs(Game game){
+
+	//Entries in the search queue
 	class Entry{
+	    //The first move pacman makes to get to this future state
 	    public MOVE firstMove;
+	    //The game object representing the future state
 	    public Game state;
+	    //How far into the future we have explored
 	    public int depth;
 
+	    //Simple constructor
 	    Entry(MOVE firstMove, Game state, int depth){
 		this.firstMove = firstMove;
 		this.state = state;
@@ -51,18 +94,27 @@ public class MyPacMan extends Controller<MOVE>
 	    }
 	}
 
+	//Our answer(s)
 	int bestScore = 0;
 	MOVE bestMove = allMoves[0];
+
+	//LinkedLists can be both LIFO & FIFO
 	LinkedList<Entry> q = new LinkedList<Entry>();
+
+	//Initialize our search space (firstMove=bestMove=dummy value for now)
 	q.add(new Entry(bestMove,game,0));
 
 	while(q.size() != 0){
 	    Entry e = q.remove();
 
+	    //Location and available moves for pacman
 	    int index = e.state.getPacmanCurrentNodeIndex();
 	    MOVE lastMove = e.state.getPacmanLastMoveMade();
 	    MOVE[] pacmanMoves = e.state.getPossibleMoves(index,lastMove);
 
+	    //Location and available moves for ghosts
+
+	    //This will have 4 slots, each describing the available moves for each ghost
 	    ArrayList<MOVE[]> ghostMoveList = new ArrayList<MOVE[]>();
 	    for(GHOST g: GHOST.values()){
 		lastMove = e.state.getGhostLastMoveMade(g);
@@ -70,55 +122,40 @@ public class MyPacMan extends Controller<MOVE>
 		ghostMoveList.add(e.state.getPossibleMoves(index,lastMove));
 	    }
 
+	    //This will have ? EnumMaps, each EnumMap pairing every ghost type with a move
+	    ArrayList<EnumMap<GHOST,MOVE>> ghostMoves = new ArrayList<EnumMap<GHOST,MOVE>>();
+	    findGhostMoves(ghostMoves,ghostMoveList);
+
+	    //System.out.println(""+pacmanMoves.length + "," + ghostMoves.size());
+
+	    //Pair every pacman move with every set of ghost moves
 	    for(int i = 0; i < pacmanMoves.length; i++){
+		for (int j = 0; j < ghostMoves.size(); j++){
 
-		MOVE pmove = pacmanMoves[i];
-
-		ArrayList<EnumMap<GHOST,MOVE>> gmoves = new ArrayList<EnumMap<GHOST,MOVE>>();
-		EnumMap<GHOST,MOVE> t;
-
-		for(int j = 0; j < ghostMoveList.get(0).length; j++){
-		    for(int k = 0; k < ghostMoveList.get(1).length; k++){
-			for(int l = 0; l < ghostMoveList.get(2).length; l++){
-			    for(int m = 0; m < ghostMoveList.get(3).length; m++){
-
-				t = new EnumMap<GHOST,MOVE>(GHOST.class);
-				t.put(GHOST.values()[0],ghostMoveList.get(0)[j]);
-				t.put(GHOST.values()[1],ghostMoveList.get(1)[k]);
-				t.put(GHOST.values()[2],ghostMoveList.get(2)[l]);
-				t.put(GHOST.values()[3],ghostMoveList.get(3)[m]);
-				gmoves.add(t);
-			    }
-			}
-		    }
-		}
-
-		if (gmoves.size() == 0) {
-		    t = new EnumMap<GHOST,MOVE>(GHOST.class);
-		    t.put(GHOST.values()[0],MOVE.NEUTRAL);
-		    t.put(GHOST.values()[1],MOVE.NEUTRAL);
-		    t.put(GHOST.values()[2],MOVE.NEUTRAL);
-		    t.put(GHOST.values()[3],MOVE.NEUTRAL);
-		    gmoves.add(t);
-		}
-
-		for (int j = 0; j < gmoves.size(); j++){
-		    //System.out.println("x");
+		    //Advance a copy accordingly
 		    Game copy = e.state.copy();
-		    copy.advanceGame(pmove,gmoves.get(j));
+		    copy.advanceGame(pacmanMoves[i],ghostMoves.get(j));
 
+		    //If we find a state that leads to death, don't bother exploring further
 		    if (copy.wasPacManEaten()) { continue; }
+		    
+		    //If we reach the cutoff
 		    if (e.depth == C) {
+			//Evaluate state (update best answer if necessary)
 			int currentScore = score(copy);
 			if (currentScore >= bestScore) {
 			    bestScore = currentScore;
 			    bestMove = e.firstMove;
 			}
+			//Don't go deeper
 			continue;
 		    }
 
+		    //Go deeper
 		    Entry neighbor = new Entry(e.firstMove,copy,e.depth+1);
-		    if (e.depth == 0) { neighbor.firstMove = pmove; }
+		    //Save the first move we make
+		    if (e.depth == 0) { neighbor.firstMove = pacmanMoves[i]; }
+
 		    q.add(neighbor);
 		}
 	    }
