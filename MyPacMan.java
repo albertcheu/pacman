@@ -12,6 +12,43 @@ import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.EnumMap;
 
+
+/*
+  Declare (arbitrary) cutoff C
+
+  best-score = 0
+  best-first-move = whatever
+
+  enqueue(whatever, game object)
+
+  While queue or stack isnt empty
+  Pop off (first-move, game object) from queue
+
+  Get the player's n possible moves
+
+  For every ghost_j:
+  Save its possible moves in list_j
+
+  We have n*list_1*list_2*list_3*list_4 (in total, m combo-moves)
+
+  Make copies of current game object.
+
+  For each i of the m combinations
+  Advance copy i using move i
+
+  If the resulting state leads to death, continue
+
+  If depth C is reached, score the state, update best & continue
+
+  If depth = 0, enqueue (i, copy)
+  Else enqueue(first-move, copy)
+
+  SCORE is the sum of (or difference between)
+  +the number of pills/powerpills eaten
+  +the path-length from Pacman to the nearest (edible) ghost
+
+*/
+
 public class MyPacMan extends Controller<MOVE>{
 
     private int C = 15;
@@ -75,7 +112,7 @@ public class MyPacMan extends Controller<MOVE>{
 
     }
 
-    private MOVE bfs(Game game){
+    private MOVE treeSearch(Game game, boolean breadthFirst){
 
 	//Entries in the search queue
 	class Entry{
@@ -100,12 +137,12 @@ public class MyPacMan extends Controller<MOVE>{
 
 	//LinkedLists can be both LIFO & FIFO
 	LinkedList<Entry> q = new LinkedList<Entry>();
-
 	//Initialize our search space (firstMove=bestMove=dummy value for now)
-	q.add(new Entry(bestMove,game,0));
+	Entry init = new Entry(bestMove,game,0);
+	if (breadthFirst) { q.add(init); } else { q.push(init); }
 
 	while(q.size() != 0){
-	    Entry e = q.remove();
+	    Entry e = breadthFirst ? q.remove() : q.pop();
 
 	    //Location and available moves for pacman
 	    int index = e.state.getPacmanCurrentNodeIndex();
@@ -152,11 +189,11 @@ public class MyPacMan extends Controller<MOVE>{
 		    }
 
 		    //Go deeper
-		    Entry neighbor = new Entry(e.firstMove,copy,e.depth+1);
+		    Entry child = new Entry(e.firstMove,copy,e.depth+1);
 		    //Save the first move we make
-		    if (e.depth == 0) { neighbor.firstMove = pacmanMoves[i]; }
+		    if (e.depth == 0) { child.firstMove = pacmanMoves[i]; }
 
-		    q.add(neighbor);
+		    if (breadthFirst) { q.add(child); } else { q.push(child); }
 		}
 	    }
 	}
@@ -164,46 +201,11 @@ public class MyPacMan extends Controller<MOVE>{
 	return bestMove;
     }
 
-    public MOVE getMove(Game game, long timeDue) 
-    {
+    public MOVE getMove(Game game, long timeDue) {
+	MOVE ans;
 
-	/*
-	Declare (arbitrary) cutoff C
+	ans = treeSearch(game,false);
 
-	best-score = 0
-	best-first-move = whatever
-
-	enqueue(whatever, game object)
-
-	While queue or stack isnt empty
-	  Pop off (first-move, game object) from queue
-
-	  Get the player's n possible moves
-
-	  For every ghost_j:
-	    Save its possible moves in list_j
-
-	  We have n*list_1*list_2*list_3*list_4 (in total, m combo-moves)
-
-	  Make copies of current game object.
-
-	  For each i of the m combinations
-	    Advance copy i using move i
-
-	    If the resulting state leads to death, continue
-
-	    If depth C is reached, score the state, update best & continue
-
-	    If depth = 0, enqueue (i, copy)
-	    Else enqueue(first-move, copy)
-
-	SCORE is the sum of (or difference between)
-	 +the number of pills/powerpills eaten
-	 +the path-length from Pacman to the nearest (edible) ghost
-
-	*/
-	MOVE ans = bfs(game);
-	//return allMoves[rnd.nextInt(allMoves.length)];
 	return ans;
     }
 }
