@@ -1,7 +1,7 @@
 package pacman.entries.pacman;
 
 import pacman.controllers.Controller;
-//import pacman.controllers.examples.StarterGhosts;
+import pacman.controllers.examples.Legacy;
 import pacman.game.Constants.MOVE;
 import pacman.game.Game;
 import pacman.game.Constants.GHOST;
@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.EnumMap;
-
 
 /*
   Declare (arbitrary) cutoff C
@@ -52,9 +51,8 @@ import java.util.EnumMap;
 
 public class MyPacMan extends Controller<MOVE>{
 
-    //private StarterGhosts sg = new StarterGhosts();
+    private Legacy lg = new Legacy();
     private int C = 25;
-
     private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
 
@@ -153,7 +151,7 @@ public class MyPacMan extends Controller<MOVE>{
 	    //MOVE[] pacmanMoves = e.state.getPossibleMoves(index);
 
 	    //Location and available moves for ghosts
-
+	    /*
 	    //This will have 4 slots, each describing the available moves for each ghost
 	    ArrayList<MOVE[]> ghostMoveList = new ArrayList<MOVE[]>();
 	    for(GHOST g: GHOST.values()){
@@ -166,25 +164,19 @@ public class MyPacMan extends Controller<MOVE>{
 	    //This will have ? EnumMaps, each EnumMap pairing every ghost type with a move
 	    ArrayList<EnumMap<GHOST,MOVE>> ghostMoves = new ArrayList<EnumMap<GHOST,MOVE>>();
 	    findGhostMoves(ghostMoves,ghostMoveList);
-	    /*
-	    EnumMap<GHOST,MOVE> ghostMove = new EnumMap<GHOST,MOVE>(GHOST.class);
-	    ghostMove.put(GHOST.values()[0],MOVE.NEUTRAL);
-	    ghostMove.put(GHOST.values()[1],MOVE.NEUTRAL);
-	    ghostMove.put(GHOST.values()[2],MOVE.NEUTRAL);
-	    ghostMove.put(GHOST.values()[3],MOVE.NEUTRAL);
-	    */
-	    //System.out.println(""+pacmanMoves.length + "," + ghostMoves.size());
+*/
+	    EnumMap<GHOST,MOVE> ghostMove = lg.getMove(game,System.currentTimeMillis()+4);
 
-	    //Pair every pacman move with every set of ghost moves
+	    //Pair every pacman move with ghost move
 	    for(int i = 0; i < pacmanMoves.length; i++){
-		for (int j = 0; j < ghostMoves.size(); j++){
+		//for (int j = 0; j < ghostMoves.size(); j++){
 
 		    //Advance a copy accordingly
 		    Game copy = e.state.copy();
-		    copy.advanceGame(pacmanMoves[i],ghostMoves.get(j));
-		    //copy.advanceGame(pacmanMoves[i],ghostMove);
+		    //copy.advanceGame(pacmanMoves[i],ghostMoves.get(j));
+		    copy.advanceGame(pacmanMoves[i],ghostMove);
 
-		    //If we find a state that leads to death, don't bother exploring further
+		    //If we find a state that leads to death, don't bother exploring
 		    if (copy.wasPacManEaten()) { continue; }
 		    
 		    //If we reach the cutoff
@@ -206,7 +198,7 @@ public class MyPacMan extends Controller<MOVE>{
 
 		    if (breadthFirst) { q.add(child); } else { q.push(child); }
 		}
-	    }
+	    //}
 	}
 
 	return bestMove;
