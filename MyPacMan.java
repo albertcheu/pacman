@@ -1,6 +1,7 @@
 package pacman.entries.pacman;
 
 import pacman.controllers.Controller;
+//import pacman.controllers.examples.StarterGhosts;
 import pacman.game.Constants.MOVE;
 import pacman.game.Game;
 import pacman.game.Constants.GHOST;
@@ -51,7 +52,8 @@ import java.util.EnumMap;
 
 public class MyPacMan extends Controller<MOVE>{
 
-    private int C = 15;
+    //private StarterGhosts sg = new StarterGhosts();
+    private int C = 25;
 
     private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
@@ -112,7 +114,7 @@ public class MyPacMan extends Controller<MOVE>{
 
     }
 
-    private MOVE treeSearch(Game game, boolean breadthFirst){
+    private MOVE treeSearch(Game game, long timeDue, boolean breadthFirst){
 
 	//Entries in the search queue
 	class Entry{
@@ -148,6 +150,7 @@ public class MyPacMan extends Controller<MOVE>{
 	    int index = e.state.getPacmanCurrentNodeIndex();
 	    MOVE lastMove = e.state.getPacmanLastMoveMade();
 	    MOVE[] pacmanMoves = e.state.getPossibleMoves(index,lastMove);
+	    //MOVE[] pacmanMoves = e.state.getPossibleMoves(index);
 
 	    //Location and available moves for ghosts
 
@@ -157,12 +160,19 @@ public class MyPacMan extends Controller<MOVE>{
 		lastMove = e.state.getGhostLastMoveMade(g);
 		index = e.state.getGhostCurrentNodeIndex(g);
 		ghostMoveList.add(e.state.getPossibleMoves(index,lastMove));
+		//ghostMoveList.add(e.state.getPossibleMoves(index));
 	    }
 
 	    //This will have ? EnumMaps, each EnumMap pairing every ghost type with a move
 	    ArrayList<EnumMap<GHOST,MOVE>> ghostMoves = new ArrayList<EnumMap<GHOST,MOVE>>();
 	    findGhostMoves(ghostMoves,ghostMoveList);
-
+	    /*
+	    EnumMap<GHOST,MOVE> ghostMove = new EnumMap<GHOST,MOVE>(GHOST.class);
+	    ghostMove.put(GHOST.values()[0],MOVE.NEUTRAL);
+	    ghostMove.put(GHOST.values()[1],MOVE.NEUTRAL);
+	    ghostMove.put(GHOST.values()[2],MOVE.NEUTRAL);
+	    ghostMove.put(GHOST.values()[3],MOVE.NEUTRAL);
+	    */
 	    //System.out.println(""+pacmanMoves.length + "," + ghostMoves.size());
 
 	    //Pair every pacman move with every set of ghost moves
@@ -172,6 +182,7 @@ public class MyPacMan extends Controller<MOVE>{
 		    //Advance a copy accordingly
 		    Game copy = e.state.copy();
 		    copy.advanceGame(pacmanMoves[i],ghostMoves.get(j));
+		    //copy.advanceGame(pacmanMoves[i],ghostMove);
 
 		    //If we find a state that leads to death, don't bother exploring further
 		    if (copy.wasPacManEaten()) { continue; }
@@ -204,7 +215,7 @@ public class MyPacMan extends Controller<MOVE>{
     public MOVE getMove(Game game, long timeDue) {
 	MOVE ans;
 
-	ans = treeSearch(game,false);
+	ans = treeSearch(game,timeDue,false);
 
 	return ans;
     }
