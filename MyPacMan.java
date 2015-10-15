@@ -52,7 +52,7 @@ import java.util.EnumMap;
 public class MyPacMan extends Controller<MOVE>{
 
     private Legacy lg = new Legacy();
-    private int C = 25;
+    private int C = 40;
     private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
 
@@ -80,7 +80,7 @@ public class MyPacMan extends Controller<MOVE>{
 	    { return state.getScore() - shortest2edible; }
 	return state.getScore() + shortest2inedible - shortest2edible;
     }
-
+    /*
     private void findGhostMoves(ArrayList<EnumMap<GHOST,MOVE>> ghostMoves,
 				ArrayList<MOVE[]> ghostMoveList){
 	EnumMap<GHOST,MOVE> t;
@@ -111,7 +111,7 @@ public class MyPacMan extends Controller<MOVE>{
 	}
 
     }
-
+    */
     private MOVE treeSearch(Game game, long timeDue, boolean breadthFirst){
 
 	//Entries in the search queue
@@ -165,7 +165,7 @@ public class MyPacMan extends Controller<MOVE>{
 	    ArrayList<EnumMap<GHOST,MOVE>> ghostMoves = new ArrayList<EnumMap<GHOST,MOVE>>();
 	    findGhostMoves(ghostMoves,ghostMoveList);
 */
-	    EnumMap<GHOST,MOVE> ghostMove = lg.getMove(game,System.currentTimeMillis()+4);
+	    EnumMap<GHOST,MOVE> ghostMove = lg.getMove(e.state,System.currentTimeMillis()+4);
 
 	    //Pair every pacman move with ghost move
 	    for(int i = 0; i < pacmanMoves.length; i++){
