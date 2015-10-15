@@ -16,13 +16,13 @@ import java.util.EnumMap;
 public class HillClimber extends Controller<MOVE>{
 
     private Legacy lg = new Legacy();
-    private int C = 80;
+    private int C = 20;
     private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
 
     //Evaluates game state
     private int score(Game state){
-
+	if (state.wasPacManEaten()) { return Integer.MIN_VALUE; }
 	int pnode = state.getPacmanCurrentNodeIndex();
 	int shortest2inedible = Integer.MAX_VALUE;
 	int shortest2edible = Integer.MAX_VALUE;
@@ -57,10 +57,9 @@ public class HillClimber extends Controller<MOVE>{
 	for(int i = 0; i < C; i++){
 	    seq.add(allMoves[rnd.nextInt(4)]);
 	}
-	System.out.println(seq.size());
 
 	//Loop until we run out of time
-	int best = 0;
+	int best = Integer.MIN_VALUE;
 	while (timeDue - 20 > System.currentTimeMillis()){
 	    int pos = rnd.nextInt(seq.size());
 	    MOVE val = allMoves[rnd.nextInt(4)];
