@@ -38,10 +38,11 @@ import java.util.EnumMap;
   If depth = 0, enqueue (i, copy)
   Else enqueue(first-move, copy)
 
-  SCORE is the sum of (or difference between)
-  +the number of pills/powerpills eaten
-  +the path-length from Pacman to the nearest (edible) ghost
-
+  SCORE is
+  +game's score
+  +the path-length from Pacman to the nearest dangerous ghost
+  -the path-length from Pacman to the nearest edible ghost
+  -the path-length from Pacman to the nearest pill
 */
 
 public class MyPacMan extends Controller<MOVE>{
@@ -68,12 +69,18 @@ public class MyPacMan extends Controller<MOVE>{
 		{ shortest2inedible = dist; }
 	}
 
+	int shortest2pill = Integer.MAX_VALUE;
+	//Find distances to pills
+	for(int i: state.getActivePillsIndices()){
+	    int dist = state.getShortestPathDistance(pnode,i);
+	    if (dist < shortest2pill) { shortest2pill = dist; }
+	    //if (dist < 4*C) { break; }
+	}
+
 	//Complete evaluation based on ghosts & score
-	if (shortest2edible == Integer.MAX_VALUE)
-	    { return state.getScore() + shortest2inedible; }
-	else if (shortest2inedible == Integer.MAX_VALUE)
-	    { return state.getScore() - shortest2edible; }
-	return state.getScore() + shortest2inedible - shortest2edible;
+	if (shortest2edible == Integer.MAX_VALUE) { shortest2edible = 0; }
+	else if (shortest2inedible == Integer.MAX_VALUE) { shortest2inedible = 0; }
+	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
     }
 
     //Returns first step in best sequence
