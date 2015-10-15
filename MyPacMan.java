@@ -74,7 +74,6 @@ public class MyPacMan extends Controller<MOVE>{
 	for(int i: state.getActivePillsIndices()){
 	    int dist = state.getShortestPathDistance(pnode,i);
 	    if (dist < shortest2pill) { shortest2pill = dist; }
-	    //if (dist < 4*C) { break; }
 	}
 
 	//Complete evaluation based on ghosts & score
