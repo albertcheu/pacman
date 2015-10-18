@@ -5,20 +5,21 @@ import pacman.controllers.examples.Legacy;
 import pacman.game.Constants.MOVE;
 import pacman.game.Game;
 import pacman.game.Constants.GHOST;
+import pacman.game.Constants.DM;
 
 import java.util.Random;
 
-import java.util.LinkedList;
+import java.util.HashSet;
 import java.util.ArrayList;
 
 import java.util.EnumMap;
 
 public class HillClimber extends Controller<MOVE>{
-
-    private Legacy lg = new Legacy();
-    private int C = 20;
-    private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
+    private Legacy lg = new Legacy();
+    private int C = 8;
+
+    private Random rnd=new Random();
 
     //Evaluates game state
     private int score(Game state){
@@ -36,46 +37,86 @@ public class HillClimber extends Controller<MOVE>{
 	    else if (!state.isGhostEdible(g) && dist < shortest2inedible)
 		{ shortest2inedible = dist; }
 	}
-
+	/*
 	int shortest2pill = Integer.MAX_VALUE;
 	//Find distances to pills
 	for(int i: state.getActivePillsIndices()){
 	    int dist = state.getShortestPathDistance(pnode,i);
 	    if (dist < shortest2pill) { shortest2pill = dist; }
 	}
+	*/
 
 	//Complete evaluation based on ghosts & score
 	if (shortest2edible == Integer.MAX_VALUE) { shortest2edible = 0; }
 	else if (shortest2inedible == Integer.MAX_VALUE) { shortest2inedible = 0; }
-	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
+	//return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
+	return state.getScore() + shortest2inedible - shortest2edible;
     }
 
-    public MOVE getMove(Game game, long timeDue) {
-	//Generate random move sequence
-	ArrayList<MOVE> seq = new ArrayList<MOVE>();
 
-	for(int i = 0; i < C; i++){
-	    seq.add(allMoves[rnd.nextInt(4)]);
-	}
+    public MOVE getMove(Game game, long timeDue) {
+	/*
+	  Generate random sequence of C integers between 0 and 5, inclusive
+	  Until the last number is reached, call current number c
+	  If dead, stop
+	  If there is only one possible move, obey it
+	  If there are two, pick the one denoted by c%2
+	  If three, pick the one denoted by c%3
+	  Evaluate
+	  Change one random move and repeat
+	*/
+
+	ArrayList<Integer> choices = new ArrayList<Integer>();
+	for(int i = 0; i < C; i++){ choices.add(rnd.nextInt(6)); }
+
+	int bestScore = Integer.MIN_VALUE;
+	MOVE bestMove = MOVE.NEUTRAL;
 
 	//Loop until we run out of time
-	int best = Integer.MIN_VALUE;
-	while (timeDue - 20 > System.currentTimeMillis()){
-	    int pos = rnd.nextInt(seq.size());
-	    MOVE val = allMoves[rnd.nextInt(4)];
-	    MOVE oldVal = seq.get(pos);
-	    seq.set(pos,val);
+	while (timeDue-4 > System.currentTimeMillis()){
+	    Game copy = game.copy();
 
-	    Game state = game.copy();
-	    for(int i = 0; i < seq.size(); i++){
-		state.advanceGame(seq.get(i),lg.getMove(state,System.currentTimeMillis()+4));
+	    //Make a random change to our move sequence
+	    int index = rnd.nextInt(C);
+	    int oldVal = choices.get(index);
+	    int newVal = rnd.nextInt(6);
+	    choices.set(index,newVal);
+	    
+	    int c = 0;
+	    MOVE lastMove = copy.getPacmanLastMoveMade();
+	    MOVE firstMove = MOVE.NEUTRAL;
+	    boolean first = true;
+
+	    //Use the moves...
+	    while(c < C){
+		//...Until we die
+		if (copy.wasPacManEaten()){ break; }
+
+		//Find where we are
+		int pnode = copy.getPacmanCurrentNodeIndex();
+
+		//Make a turn
+		MOVE[] possible = copy.getPossibleMoves(pnode, lastMove);
+		MOVE m = possible[0];
+		if (possible.length == 1) {}
+		else if (possible.length == 2) { m = possible[choices.get(c++) % 2]; }
+		else { m = possible[choices.get(c++) % 3]; }
+		
+		copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
+
+		if (first) { firstMove = m; first = false; }		
+		lastMove = m;
 	    }
-	    int s = score(state);
+	    
+	    int s = score(copy);
+	    if (s > bestScore) {
+		bestMove = firstMove;
+		bestScore = s;
+	    }
 
-	    if (s > best) { best = s; }
-	    else { seq.set(pos,oldVal); }
+	    choices.set(index,oldVal);
 	}
 
-	return seq.get(0);
+	return bestMove;
     }
 }
