@@ -17,7 +17,7 @@ import java.util.EnumMap;
 public class HillClimber extends Controller<MOVE>{
     private MOVE[] allMoves = MOVE.values();
     private Legacy lg = new Legacy();
-    private int C = 8;
+    private int C = 12;
 
     private Random rnd=new Random();
 
@@ -37,20 +37,18 @@ public class HillClimber extends Controller<MOVE>{
 	    else if (!state.isGhostEdible(g) && dist < shortest2inedible)
 		{ shortest2inedible = dist; }
 	}
-	/*
+
 	int shortest2pill = Integer.MAX_VALUE;
 	//Find distances to pills
 	for(int i: state.getActivePillsIndices()){
 	    int dist = state.getShortestPathDistance(pnode,i);
 	    if (dist < shortest2pill) { shortest2pill = dist; }
 	}
-	*/
 
 	//Complete evaluation based on ghosts & score
 	if (shortest2edible == Integer.MAX_VALUE) { shortest2edible = 0; }
 	else if (shortest2inedible == Integer.MAX_VALUE) { shortest2inedible = 0; }
-	//return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
-	return state.getScore() + shortest2inedible - shortest2edible;
+	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
     }
 
 
@@ -83,29 +81,29 @@ public class HillClimber extends Controller<MOVE>{
 	    choices.set(index,newVal);
 	    
 	    int c = 0;
-	    MOVE lastMove = copy.getPacmanLastMoveMade();
 	    MOVE firstMove = MOVE.NEUTRAL;
 	    boolean first = true;
 
 	    //Use the moves...
-	    while(c < C){
+	    while(true){
 		//...Until we die
 		if (copy.wasPacManEaten()){ break; }
 
 		//Find where we are
 		int pnode = copy.getPacmanCurrentNodeIndex();
 
-		//Make a turn
+		MOVE lastMove = copy.getPacmanLastMoveMade();
 		MOVE[] possible = copy.getPossibleMoves(pnode, lastMove);
 		MOVE m = possible[0];
-		if (possible.length == 1) {}
-		else if (possible.length == 2) { m = possible[choices.get(c++) % 2]; }
-		else { m = possible[choices.get(c++) % 3]; }
+		//Make a turn
+		if (possible.length > 1) {
+		    if (c == C) { break; }
+		    m = possible[choices.get(c++) % possible.length];
+		}
 		
 		copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
 
 		if (first) { firstMove = m; first = false; }		
-		lastMove = m;
 	    }
 	    
 	    int s = score(copy);
@@ -113,8 +111,7 @@ public class HillClimber extends Controller<MOVE>{
 		bestMove = firstMove;
 		bestScore = s;
 	    }
-
-	    choices.set(index,oldVal);
+	    else { choices.set(index,oldVal); }
 	}
 
 	return bestMove;
