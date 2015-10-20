@@ -17,7 +17,7 @@ import java.util.EnumMap;
 public class HillClimber extends Controller<MOVE>{
     private MOVE[] allMoves = MOVE.values();
     private Legacy lg = new Legacy();
-    private int C = 12;
+    private int C = 4;
 
     private Random rnd=new Random();
 
@@ -71,7 +71,7 @@ public class HillClimber extends Controller<MOVE>{
 	MOVE bestMove = MOVE.NEUTRAL;
 
 	//Loop until we run out of time
-	while (timeDue-4 > System.currentTimeMillis()){
+	while (timeDue-1 > System.currentTimeMillis()){
 	    Game copy = game.copy();
 
 	    //Make a random change to our move sequence
