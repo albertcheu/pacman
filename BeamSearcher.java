@@ -52,7 +52,6 @@ public class BeamSearcher extends Controller<MOVE>{
 	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
     }
 
-
     public MOVE getMove(Game game, long timeDue) {
 	/*
 	  Generate random sequences of C integers between 0 and 5, inclusive
@@ -68,28 +67,30 @@ public class BeamSearcher extends Controller<MOVE>{
 	    Find the K best successor sequences/states
 	*/
 
-	ArrayList<Integer> choices = new ArrayList<Integer>();
-	for(int i = 0; i < C; i++){ choices.add(rnd.nextInt(6)); }
+	class BeamEntry{
+	    public Game state;
+	    public MOVE firstMove;
+	    public int score;
+	    BeamEntry(Game g, MOVE m, int i){
+		state = g;
+		MOVE = m;
+		score = i;
+	    }
+	};
 
-	int bestScore = Integer.MIN_VALUE;
-	MOVE bestMove = MOVE.NEUTRAL;
+	ArrayList<BeamEntry> beam = new ArrayList<BeamEntry>();
+	for (int j = 0; j < K; j++){
+	    ArrayList<Integer> choices = new ArrayList<Integer>();
+	    for(int i = 0; i < C; i++){ choices.add(rnd.nextInt(6)); }
 
-	//Loop until we run out of time
-	while (timeDue-1 > System.currentTimeMillis()){
 	    Game copy = game.copy();
-
-	    //Make a random change to our move sequence
-	    int index = rnd.nextInt(C);
-	    int oldVal = choices.get(index);
-	    int newVal = rnd.nextInt(6);
-	    choices.set(index,newVal);
-	    
 	    int c = 0;
 	    MOVE firstMove = MOVE.NEUTRAL;
-	    boolean first = true;
 
 	    //Use the moves...
 	    while(true){
+		if (c==0) { firstMove = m; }
+
 		//...Until we die
 		if (copy.wasPacManEaten()){ break; }
 
@@ -106,16 +107,19 @@ public class BeamSearcher extends Controller<MOVE>{
 		}
 		
 		copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
-
-		if (first) { firstMove = m; first = false; }		
 	    }
 	    
 	    int s = score(copy);
-	    if (s > bestScore) {
-		bestMove = firstMove;
-		bestScore = s;
-	    }
-	    else { choices.set(index,oldVal); }
+	    BeamEntry be = new BeamEntry(copy,firstMove,s);
+	    beam.add(be);
+	}
+
+	int bestScore = Integer.MIN_VALUE;
+	MOVE bestMove = MOVE.NEUTRAL;
+
+	//Loop until we run out of time
+	while (timeDue-1 > System.currentTimeMillis()){
+
 	}
 
 	return bestMove;
