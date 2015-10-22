@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 import java.util.EnumMap;
 
-public class HillClimber extends Controller<MOVE>{
+public class Annealer extends Controller<MOVE>{
     private MOVE[] allMoves = MOVE.values();
     private Legacy lg = new Legacy();
     private int C = 4;
@@ -51,17 +51,23 @@ public class HillClimber extends Controller<MOVE>{
 	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
     }
 
+    public double cooldown(int t){ return 2.0 / t; }
 
     public MOVE getMove(Game game, long timeDue) {
 	/*
 	  Generate random sequence of C integers between 0 and 5, inclusive
-	  Until the last number is reached, call current number c
-	  If dead, stop
-	  If there is only one possible move, obey it
-	  If there are two, pick the one denoted by c%2
-	  If three, pick the one denoted by c%3
-	  Evaluate
-	  Change one random move and repeat
+	  Loop until out of time
+	    Based on how many iterations have passed, calculate Temp
+	    Make a random change
+	    Until the last number is reached, call current number c
+	      If dead, stop
+	      If there is only one possible move, obey it
+	      If there are two, pick the one denoted by c%2
+	      If three, pick the one denoted by c%3
+	    Evaluate
+	    If better, keep
+	    If worse, keep according to e^(delta/Temp)
+	  
 	*/
 
 	ArrayList<Integer> choices = new ArrayList<Integer>();
@@ -71,6 +77,7 @@ public class HillClimber extends Controller<MOVE>{
 	MOVE bestMove = MOVE.NEUTRAL;
 
 	//Loop until we run out of time
+	int t = 1;
 	while (timeDue-1 > System.currentTimeMillis()){
 	    Game copy = game.copy();
 
@@ -94,8 +101,8 @@ public class HillClimber extends Controller<MOVE>{
 
 		MOVE lastMove = copy.getPacmanLastMoveMade();
 		MOVE[] possible = copy.getPossibleMoves(pnode, lastMove);
-		//MOVE[] possible = copy.getPossibleMoves(pnode);
 		MOVE m = possible[0];
+
 		//Make a turn
 		if (possible.length > 1) {
 		    if (c == C) { break; }
@@ -108,11 +115,18 @@ public class HillClimber extends Controller<MOVE>{
 	    }
 	    
 	    int s = score(copy);
+	    double temp = cooldown(t++);
 	    if (s > bestScore) {
 		bestMove = firstMove;
 		bestScore = s;
 	    }
-	    else { choices.set(index,oldVal); }
+	    else {
+		int delta = s - bestScore;
+		double prob = Math.exp(delta / temp);
+		double cutoff = prob * 100000;
+		int r = rnd.nextInt(100000);
+		if (r < cutoff) { choices.set(index,oldVal); }
+	    }
 	}
 
 	return bestMove;

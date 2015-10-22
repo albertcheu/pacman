@@ -8,7 +8,8 @@ import pacman.game.Constants.GHOST;
 import pacman.game.Constants.DM;
 
 import java.util.Random;
-
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.ArrayList;
 
@@ -53,14 +54,10 @@ public class BeamSearcher extends Controller<MOVE>{
     }
 
     public MOVE getMove(Game game, long timeDue) {
+	long gap = (timeDue - System.currentTimeMillis());
+
 	/*
-	  Generate random sequences of C integers between 0 and 5, inclusive
-	  For each:
-	    Until the last number is reached, call current number c
-	    If dead, stop
-	    If there is only one possible move, obey it
-	    If there are two, pick the one denoted by c%2
-	    If three, pick the one denoted by c%3	  
+	  Generate random sequences of MOVES/states
  
 	  Until we run out of time
 	    Explore all children of all sequences: add moves to each
@@ -73,39 +70,27 @@ public class BeamSearcher extends Controller<MOVE>{
 	    public int score;
 	    BeamEntry(Game g, MOVE m, int i){
 		state = g;
-		MOVE = m;
+		MOVE firstMove = m;
 		score = i;
 	    }
 	};
 
-	ArrayList<BeamEntry> beam = new ArrayList<BeamEntry>();
-	for (int j = 0; j < K; j++){
-	    ArrayList<Integer> choices = new ArrayList<Integer>();
-	    for(int i = 0; i < C; i++){ choices.add(rnd.nextInt(6)); }
+	class CustomComparator implements Comparator<BeamEntry>{
+	    public int compare(BeamEntry be1, BeamEntry be2){
+		return be2.score-be1.score;
+	    }
+	}
 
+	ArrayList<BeamEntry> beam = new ArrayList<BeamEntry>();
+
+	for (int i = 0; i < K; i++){
 	    Game copy = game.copy();
-	    int c = 0;
 	    MOVE firstMove = MOVE.NEUTRAL;
 
-	    //Use the moves...
-	    while(true){
-		if (c==0) { firstMove = m; }
-
-		//...Until we die
+	    for(int j = 0; j < C; j++){
 		if (copy.wasPacManEaten()){ break; }
-
-		//Find where we are
-		int pnode = copy.getPacmanCurrentNodeIndex();
-
-		MOVE lastMove = copy.getPacmanLastMoveMade();
-		MOVE[] possible = copy.getPossibleMoves(pnode, lastMove);
-		MOVE m = possible[0];
-		//Make a turn
-		if (possible.length > 1) {
-		    if (c == C) { break; }
-		    m = possible[choices.get(c++) % possible.length];
-		}
-		
+		MOVE m = allMoves[rnd.nextInt(4)];
+		if (j == 0) { firstMove = m; }
 		copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
 	    }
 	    
@@ -114,14 +99,37 @@ public class BeamSearcher extends Controller<MOVE>{
 	    beam.add(be);
 	}
 
-	int bestScore = Integer.MIN_VALUE;
-	MOVE bestMove = MOVE.NEUTRAL;
+	//while (timeDue-1 > System.currentTimeMillis()){
+	for (int c = 0; c < 10; c++){
+	    //To hold child states
+	    ArrayList<BeamEntry> children = new ArrayList<BeamEntry>();
 
-	//Loop until we run out of time
-	while (timeDue-1 > System.currentTimeMillis()){
+	    //
+	    for(int i = 0; i < K; i++){
+		BeamEntry be = beam.get(i);
+		if (be.state.wasPacManEaten()) { continue; }
+		int pnode = be.state.getPacmanCurrentNodeIndex();
+		MOVE[] moves = be.state.getPossibleMoves(pnode);
+		for (int j = 0; j < moves.length; j++){
+		    Game copy = be.state.copy();
+		    copy.advanceGame(moves[j],
+				     lg.getMove(copy, System.currentTimeMillis()+1));
+		    int s = score(copy);
+		    children.add(new BeamEntry(copy,be.firstMove,s));
+		}
+	    }
 
+	    //System.out.println(children.size());
+
+	    Collections.sort(children,new CustomComparator());
+
+	    beam.clear();
+	    for(int i = 0; i < K; i++){
+		beam.add(children.get(i));
+	    }
 	}
 
-	return bestMove;
+	//return beam.get(0).firstMove;
+	return MOVE.UP;
     }
 }
