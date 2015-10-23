@@ -70,7 +70,7 @@ public class BeamSearcher extends Controller<MOVE>{
 	    public int score;
 	    BeamEntry(Game g, MOVE m, int i){
 		state = g;
-		MOVE firstMove = m;
+		firstMove = m;
 		score = i;
 	    }
 	};
@@ -93,19 +93,27 @@ public class BeamSearcher extends Controller<MOVE>{
 		if (j == 0) { firstMove = m; }
 		copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
 	    }
-	    
+
 	    int s = score(copy);
 	    BeamEntry be = new BeamEntry(copy,firstMove,s);
+	    //System.out.println(be.firstMove);
 	    beam.add(be);
 	}
 
-	//while (timeDue-1 > System.currentTimeMillis()){
-	for (int c = 0; c < 10; c++){
+	Collections.sort(beam,new CustomComparator());
+	MOVE ans = beam.get(0).firstMove;
+
+	while (timeDue-K > System.currentTimeMillis()){
+	//for (int c = 0; c < 10; c++){
+
+	    int min = K;
+	    if (beam.size() < min) { min = beam.size(); }
+
 	    //To hold child states
 	    ArrayList<BeamEntry> children = new ArrayList<BeamEntry>();
 
 	    //
-	    for(int i = 0; i < K; i++){
+	    for(int i = 0; i < min; i++){
 		BeamEntry be = beam.get(i);
 		if (be.state.wasPacManEaten()) { continue; }
 		int pnode = be.state.getPacmanCurrentNodeIndex();
@@ -119,17 +127,19 @@ public class BeamSearcher extends Controller<MOVE>{
 		}
 	    }
 
-	    //System.out.println(children.size());
-
 	    Collections.sort(children,new CustomComparator());
 
 	    beam.clear();
-	    for(int i = 0; i < K; i++){
+
+	    if (K > children.size()) { min = children.size(); }
+	    for(int i = 0; i < min; i++){
 		beam.add(children.get(i));
 	    }
 	}
 
-	//return beam.get(0).firstMove;
-	return MOVE.UP;
+	try { return beam.get(0).firstMove; }
+	catch (Exception e) {}
+	return ans;
+	//return MOVE.UP;
     }
 }
