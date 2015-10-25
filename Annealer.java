@@ -8,8 +8,6 @@ import pacman.game.Constants.GHOST;
 import pacman.game.Constants.DM;
 
 import java.util.Random;
-
-import java.util.HashSet;
 import java.util.ArrayList;
 
 import java.util.EnumMap;
@@ -51,7 +49,7 @@ public class Annealer extends Controller<MOVE>{
 	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
     }
 
-    public double cooldown(int t){ return 2.0 / t; }
+    public double cooldown(int t){ return 3.0 / t; }
 
     public MOVE getMove(Game game, long timeDue) {
 	/*
@@ -110,7 +108,7 @@ public class Annealer extends Controller<MOVE>{
 		}
 		
 		copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
-
+		
 		if (first) { firstMove = m; first = false; }		
 	    }
 	    
@@ -125,7 +123,9 @@ public class Annealer extends Controller<MOVE>{
 		double prob = Math.exp(delta / temp);
 		double cutoff = prob * 100000;
 		int r = rnd.nextInt(100000);
-		if (r < cutoff) { choices.set(index,oldVal); }
+		//If r <= cutoff, we should keep
+		//Otherwise, reset
+		if (r > cutoff) { choices.set(index,oldVal); }
 	    }
 	}
 

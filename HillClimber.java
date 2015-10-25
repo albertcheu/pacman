@@ -8,8 +8,6 @@ import pacman.game.Constants.GHOST;
 import pacman.game.Constants.DM;
 
 import java.util.Random;
-
-import java.util.HashSet;
 import java.util.ArrayList;
 
 import java.util.EnumMap;
