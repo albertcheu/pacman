@@ -15,7 +15,7 @@ import java.util.EnumMap;
 public class Annealer extends Controller<MOVE>{
     private MOVE[] allMoves = MOVE.values();
     private Legacy lg = new Legacy();
-    private int C = 4;
+    private int C = 6;
 
     private Random rnd=new Random();
 
@@ -49,7 +49,7 @@ public class Annealer extends Controller<MOVE>{
 	return state.getScore() + shortest2inedible - shortest2edible - shortest2pill;
     }
 
-    public double cooldown(int t){ return 3.0 / t; }
+    public double cooldown(int t){ return 1.0 / t; }
 
     public MOVE getMove(Game game, long timeDue) {
 	/*
