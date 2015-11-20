@@ -19,7 +19,7 @@ public class DecisionTree extends Controller<MOVE>{
 	public MOVE m, pillMove, powerPillMove, huntMove, fleeMove;
 	    
 	public Individual(){
-	    mapIndex = -1;
+
 	}
 	public Individual(int mapIndex, int pnode, MOVE pillMove,
 			  MOVE powerPillMove, MOVE huntMove, MOVE fleeMove,
@@ -214,10 +214,9 @@ public class DecisionTree extends Controller<MOVE>{
 
     public DecisionTree(){
 	super();
-
-	File f = new File("trainingData");
 	ArrayList<Individual> training = new ArrayList<Individual>();
 
+	File f = new File("trainingData");
 	if (f.exists()){ readTraining(training); }
 
 	else{
