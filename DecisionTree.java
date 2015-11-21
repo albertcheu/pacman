@@ -7,10 +7,17 @@ import pacman.game.Game;
 import pacman.game.Constants.GHOST;
 import pacman.game.Constants.DM;
 
+import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.io.File;
 
 public class DecisionTree extends Controller<MOVE>{
 
@@ -110,7 +117,7 @@ public class DecisionTree extends Controller<MOVE>{
 	return ans;
     }
 
-    private MOVE furtherGhost(Game state){
+    private MOVE furtherGhost(Game state, int pnode){
 	MOVE ans = MOVE.NEUTRAL;
 	int shortest2inedible = Integer.MAX_VALUE;
 	int gnode = 0;
@@ -128,112 +135,140 @@ public class DecisionTree extends Controller<MOVE>{
 	return ans;
     }
 
-    private readTraining(ArrayList<Individual> training){
+    private void readTraining(ArrayList<Individual> training){
 	//Read in pre-processed training data
-	BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("trainingData")));
-	String input=br.readLine();
+	try{
+	    BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("trainingData")));
+	    String input=br.readLine();
 
-	while(input!=null){
+	    while(input!=null){
 
-	    if (!input.equals("")) {
-		String[] values=state.split(",");
-		int index = 0;
-		int mazeIndex = Integer.parseInt(values[index++]);
-		int pnode = Integer.parseInt(values[index++]);
-		MOVE pillMove = Integer.parseInt(values[index++]);
-		MOVE powerPillMove = Integer.parseInt(values[index++]);
-		MOVE huntMove = Integer.parseInt(values[index++]);
-		MOVE fleeMove = Integer.parseInt(values[index++]);
-		MOVE m = Integer.parseInt(values[index++]);
-		training.add(new Individual(mazeIndex,pnode,pillMove,
-					    powerPillMove,huntMove,fleeMove,m));
+		if (!input.equals("")) {
+		    //System.out.println(input);
+		    String[] values=input.split(",");
+		    int index = 0;
+		    int mapIndex = Integer.parseInt(values[index++]);
+		    int pnode = Integer.parseInt(values[index++]);
+
+		    MOVE pillMove = MOVE.valueOf(values[index++]);
+		    MOVE powerPillMove = MOVE.valueOf(values[index++]);
+		    MOVE huntMove = MOVE.valueOf(values[index++]);
+		    MOVE fleeMove = MOVE.valueOf(values[index++]);
+		    MOVE m = MOVE.valueOf(values[index++]);
+		    training.add(new Individual(mapIndex,pnode,pillMove,
+						powerPillMove,huntMove,fleeMove,m));
+		}
+		input=br.readLine();
 	    }
-	    input=br.readLine();
 	}
+	catch(IOException ioe){}
     }
 
-    private writeTraining(ArrayList<Individual> training){
+    private void writeTraining(ArrayList<Individual> training){
+	try{
+	    FileOutputStream outS=new FileOutputStream("trainingData",true);
+	    PrintWriter pw=new PrintWriter(outS);
 
-	for(int i = 0; i < training.size(); i++){
-	    Individual ind = training.get(i);
-	    StringBuilder sb=new StringBuilder();
-	    sb.append(ind.mazeIndex+","+ind.pnode+","+ind.pillMove+","+
-		      ind.powerPillMove+","+ind.huntMove+","+ind.fleeMove+","+
-		      ind.m+"\n");
+	    for(int i = 0; i < training.size(); i++){
+		Individual ind = training.get(i);
+		StringBuilder sb=new StringBuilder();
+		sb.append(ind.mapIndex+","+ind.pnode+","+ind.pillMove+","+
+			  ind.powerPillMove+","+ind.huntMove+","+ind.fleeMove+","+
+			  ind.m);
+		pw.println(sb.toString());
+		pw.flush();
+	    }
+
+	    outS.close();
 	}
-
-	FileOutputStream outS=new FileOutputStream("trainingData",true);
-	PrintWriter pw=new PrintWriter(outS);
-	pw.println(data);
-	pw.flush();
-	outS.close();
+	catch(IOException ioe){}
     }
 
-    private readRecordings(ArrayList<Individual> training){
+    private void readRecordings(ArrayList<Individual> training){
 	//Convert gameplay recordings to usable training format
 	//snippet obtained from http://stackoverflow.com/questions/4917326/how-to-iterate-over-the-files-of-a-certain-directory-in-java
 	File dir = new File("recordings");
 	File[] directoryListing = dir.listFiles();
-	Game state = new Game();
+	Game state=new Game(rnd.nextLong());
 
 	for (File child : directoryListing) {
-	    BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream(child.getName())));
-	    String input=br.readLine();
-	    Individual ind = new Individual();
-	    boolean flag = false;
+	    try{
+		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream(child.getName())));
+		String input=br.readLine();
+		//String prev = "";
+		Individual ind = new Individual();
+		boolean flag = false;
+		System.out.println("About to read file "+child.getName());
+		while(input!=null){
+		    if (!input.equals("")) {
+			//if (input.equals(prev)) { break; }
+			//else { prev = input; }
 
-	    while(input!=null){
-		if(!input.equals("")) {
-		    String[] values=state.split(",");
-		    int mazeIndex = values[0];
-		    state.setGameState(input);
-		    int pnode = state.getPacmanCurrentNodeIndex();
-		    if (!state.isJunction(pnode)){
-			if (flag) {
-			    ind.m = state.lastMoveMade;
-			    training.add(ind);
-			    flag = false;
+			//System.out.println(input);
+			String[] values=input.split(",");
+			int mapIndex = Integer.parseInt(values[0]);
+			state.setGameState(input);
+			int pnode = state.getPacmanCurrentNodeIndex();
+			if (!state.isJunction(pnode)){
+			    if (flag) {
+				//System.out.println(pnode);
+				ind.m = state.getPacmanLastMoveMade();
+				training.add(ind);
+				flag = false;
+			    }
+			    input=br.readLine();
+			    continue;
 			}
-			continue;
-		    }
 			
-		    MOVE pillMove = closer2Pill(state,pnode);
-		    MOVE powerPillMove = closer2Power(state,pnode);
-		    MOVE huntMove = closer2Ghost(state,pnode);
-		    MOVE fleeMove = furtherGhost(state,pnode);
-		    ind = new Individual(mazeIndex,pnode,pillMove,
-					 powerPillMove,huntMove,fleeMove,
-					 MOVE.NEUTRAL);
-		    flag = true;
+			MOVE pillMove = closer2Pill(state,pnode);
+			MOVE powerPillMove = closer2Power(state,pnode);
+			MOVE huntMove = closer2Ghost(state,pnode);
+			MOVE fleeMove = furtherGhost(state,pnode);
+			ind = new Individual(mapIndex,pnode,pillMove,
+					     powerPillMove,huntMove,fleeMove,
+					     MOVE.NEUTRAL);
+			flag = true;
+		    }
+		    input=br.readLine();
 		}
-
-		input=br.readLine();   
 	    }
+
+	    catch(IOException ioe){}
 	}
+	
     }
 
     public DecisionTree(){
 	super();
+	System.out.println("Constructor");
+
 	ArrayList<Individual> training = new ArrayList<Individual>();
 
 	File f = new File("trainingData");
-	if (f.exists()){ readTraining(training); }
+	if (f.exists()){
+	    System.out.println("Reading in training data...");
+	    readTraining(training);
+	    System.out.println(training.size());
+	}
 
 	else{
+	    System.out.println("Reading in raw gameplay data...");
 	    readRecordings(training);
+	    System.out.println(training.size());
+	    System.out.println("Writing out training data...");
 	    writeTraining(training);
 	}
 
+	System.out.println("Making tree...");
 	makeTree(training);
     }
 
     private void makeTree(ArrayList<Individual> training){
-
+	//Save tree as member of Controller
     }
 
     public MOVE getMove(Game game, long timeDue) {
-
+	//Use the tree
 	return MOVE.NEUTRAL;
     }
 }
-//Foobar
