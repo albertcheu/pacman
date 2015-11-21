@@ -22,16 +22,16 @@ import java.util.EnumMap;
 public class DecisionTree extends Controller<MOVE>{
 
     public class Individual{
-	public int mapIndex, pnode;	    
+	public int mazeIndex, pnode;	    
 	public MOVE m, pillMove, powerPillMove, huntMove, fleeMove;
 	    
 	public Individual(){
 
 	}
-	public Individual(int mapIndex, int pnode, MOVE pillMove,
+	public Individual(int mazeIndex, int pnode, MOVE pillMove,
 			  MOVE powerPillMove, MOVE huntMove, MOVE fleeMove,
 			  MOVE m){
-	    this.mapIndex = mapIndex;
+	    this.mazeIndex = mazeIndex;
 	    this.pnode = pnode;
 	    this.pillMove = pillMove;
 	    this.powerPillMove = powerPillMove;
@@ -147,7 +147,7 @@ public class DecisionTree extends Controller<MOVE>{
 		    //System.out.println(input);
 		    String[] values=input.split(",");
 		    int index = 0;
-		    int mapIndex = Integer.parseInt(values[index++]);
+		    int mazeIndex = Integer.parseInt(values[index++]);
 		    int pnode = Integer.parseInt(values[index++]);
 
 		    MOVE pillMove = MOVE.valueOf(values[index++]);
@@ -155,7 +155,7 @@ public class DecisionTree extends Controller<MOVE>{
 		    MOVE huntMove = MOVE.valueOf(values[index++]);
 		    MOVE fleeMove = MOVE.valueOf(values[index++]);
 		    MOVE m = MOVE.valueOf(values[index++]);
-		    training.add(new Individual(mapIndex,pnode,pillMove,
+		    training.add(new Individual(mazeIndex,pnode,pillMove,
 						powerPillMove,huntMove,fleeMove,m));
 		}
 		input=br.readLine();
@@ -172,7 +172,7 @@ public class DecisionTree extends Controller<MOVE>{
 	    for(int i = 0; i < training.size(); i++){
 		Individual ind = training.get(i);
 		StringBuilder sb=new StringBuilder();
-		sb.append(ind.mapIndex+","+ind.pnode+","+ind.pillMove+","+
+		sb.append(ind.mazeIndex+","+ind.pnode+","+ind.pillMove+","+
 			  ind.powerPillMove+","+ind.huntMove+","+ind.fleeMove+","+
 			  ind.m);
 		pw.println(sb.toString());
@@ -206,7 +206,7 @@ public class DecisionTree extends Controller<MOVE>{
 
 			//System.out.println(input);
 			String[] values=input.split(",");
-			int mapIndex = Integer.parseInt(values[0]);
+			int mazeIndex = Integer.parseInt(values[0]);
 			state.setGameState(input);
 			int pnode = state.getPacmanCurrentNodeIndex();
 			if (!state.isJunction(pnode)){
@@ -224,7 +224,7 @@ public class DecisionTree extends Controller<MOVE>{
 			MOVE powerPillMove = closer2Power(state,pnode);
 			MOVE huntMove = closer2Ghost(state,pnode);
 			MOVE fleeMove = furtherGhost(state,pnode);
-			ind = new Individual(mapIndex,pnode,pillMove,
+			ind = new Individual(mazeIndex,pnode,pillMove,
 					     powerPillMove,huntMove,fleeMove,
 					     MOVE.NEUTRAL);
 			flag = true;
