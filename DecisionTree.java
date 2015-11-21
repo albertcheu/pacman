@@ -17,22 +17,30 @@ import java.io.PrintWriter;
 
 import java.util.Random;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.EnumMap;
 
 public class DecisionTree extends Controller<MOVE>{
 
+    private MOVE[] allMoves = MOVE.values();
+    private Legacy lg = new Legacy();
+    private int C = 6;
+    private Random rnd=new Random();
+    private Node root;
+
+    public enum Attribute {MAZE,JUNCTION,PILL,POWER,HUNT,FLEE};
     public class Individual{
-	public int mazeIndex, pnode;	    
+	public int mazeIndex, junction;
 	public MOVE m, pillMove, powerPillMove, huntMove, fleeMove;
 	    
 	public Individual(){
 
 	}
-	public Individual(int mazeIndex, int pnode, MOVE pillMove,
+	public Individual(int mazeIndex, int junction, MOVE pillMove,
 			  MOVE powerPillMove, MOVE huntMove, MOVE fleeMove,
 			  MOVE m){
 	    this.mazeIndex = mazeIndex;
-	    this.pnode = pnode;
+	    this.junction = junction;
 	    this.pillMove = pillMove;
 	    this.powerPillMove = powerPillMove;
 	    this.huntMove = huntMove;
@@ -41,12 +49,18 @@ public class DecisionTree extends Controller<MOVE>{
 	}
     };
 
+    public class Node{
+	public Attribute a;
+	public MOVE decision;
+	public ArrayList<Node> children;
 
-    private MOVE[] allMoves = MOVE.values();
-    private Legacy lg = new Legacy();
-    private int C = 6;
-
-    private Random rnd=new Random();
+	public Node(){}
+	public Node(Attribute a, MOVE decision){
+	    this.a = a;
+	    this.decision = decision;
+	    children = new ArrayList<Node>();
+	}
+    };
     
     /*
       As in other controllers, determine a "turn sequence"
@@ -135,7 +149,7 @@ public class DecisionTree extends Controller<MOVE>{
 	return ans;
     }
 
-    private void readTraining(ArrayList<Individual> training){
+    private void readTraining(HashSet<Individual> training){
 	//Read in pre-processed training data
 	try{
 	    BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("trainingData")));
@@ -148,14 +162,14 @@ public class DecisionTree extends Controller<MOVE>{
 		    String[] values=input.split(",");
 		    int index = 0;
 		    int mazeIndex = Integer.parseInt(values[index++]);
-		    int pnode = Integer.parseInt(values[index++]);
+		    int junction = Integer.parseInt(values[index++]);
 
 		    MOVE pillMove = MOVE.valueOf(values[index++]);
 		    MOVE powerPillMove = MOVE.valueOf(values[index++]);
 		    MOVE huntMove = MOVE.valueOf(values[index++]);
 		    MOVE fleeMove = MOVE.valueOf(values[index++]);
 		    MOVE m = MOVE.valueOf(values[index++]);
-		    training.add(new Individual(mazeIndex,pnode,pillMove,
+		    training.add(new Individual(mazeIndex,junction,pillMove,
 						powerPillMove,huntMove,fleeMove,m));
 		}
 		input=br.readLine();
@@ -164,7 +178,7 @@ public class DecisionTree extends Controller<MOVE>{
 	catch(IOException ioe){}
     }
 
-    private void writeTraining(ArrayList<Individual> training){
+    private void writeTraining(HashSet<Individual> training){
 	try{
 	    FileOutputStream outS=new FileOutputStream("trainingData",true);
 	    PrintWriter pw=new PrintWriter(outS);
@@ -172,7 +186,7 @@ public class DecisionTree extends Controller<MOVE>{
 	    for(int i = 0; i < training.size(); i++){
 		Individual ind = training.get(i);
 		StringBuilder sb=new StringBuilder();
-		sb.append(ind.mazeIndex+","+ind.pnode+","+ind.pillMove+","+
+		sb.append(ind.mazeIndex+","+ind.junction+","+ind.pillMove+","+
 			  ind.powerPillMove+","+ind.huntMove+","+ind.fleeMove+","+
 			  ind.m);
 		pw.println(sb.toString());
@@ -184,7 +198,20 @@ public class DecisionTree extends Controller<MOVE>{
 	catch(IOException ioe){}
     }
 
-    private void readRecordings(ArrayList<Individual> training){
+    private int binSearch(int[] junctions, int j){
+	//guaranteed to have j in junctions
+	int left = 0; int right = junctions.length-1;
+	int mid = (right+left)/2;
+	while(junctions[mid]!=j){
+	    if (left+1==right) { mid = right; break; }
+	    if (junctions[mid]>j) { right = mid; }
+	    else { left = mid; }
+	    mid = (right+left)/2;
+	}
+	return mid;
+    }
+
+    private void readRecordings(HashSet<Individual> training){
 	//Convert gameplay recordings to usable training format
 	//snippet obtained from http://stackoverflow.com/questions/4917326/how-to-iterate-over-the-files-of-a-certain-directory-in-java
 	File dir = new File("recordings");
@@ -195,14 +222,14 @@ public class DecisionTree extends Controller<MOVE>{
 	    try{
 		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream(child.getName())));
 		String input=br.readLine();
-		//String prev = "";
+		state.setGameState(input);
+		int[] junctions = state.getJunctionIndices();
+
 		Individual ind = new Individual();
 		boolean flag = false;
 		System.out.println("About to read file "+child.getName());
 		while(input!=null){
 		    if (!input.equals("")) {
-			//if (input.equals(prev)) { break; }
-			//else { prev = input; }
 
 			//System.out.println(input);
 			String[] values=input.split(",");
@@ -216,18 +243,21 @@ public class DecisionTree extends Controller<MOVE>{
 				training.add(ind);
 				flag = false;
 			    }
-			    input=br.readLine();
-			    continue;
+			    //input=br.readLine();
+			    //continue;
 			}
-			
-			MOVE pillMove = closer2Pill(state,pnode);
-			MOVE powerPillMove = closer2Power(state,pnode);
-			MOVE huntMove = closer2Ghost(state,pnode);
-			MOVE fleeMove = furtherGhost(state,pnode);
-			ind = new Individual(mazeIndex,pnode,pillMove,
-					     powerPillMove,huntMove,fleeMove,
-					     MOVE.NEUTRAL);
-			flag = true;
+
+			else {
+			    int j = binSearch(junctions,pnode);
+			    MOVE pillMove = closer2Pill(state,pnode);
+			    MOVE powerPillMove = closer2Power(state,pnode);
+			    MOVE huntMove = closer2Ghost(state,pnode);
+			    MOVE fleeMove = furtherGhost(state,pnode);
+			    ind = new Individual(mazeIndex, j, pillMove,
+						 powerPillMove, huntMove,
+						 fleeMove, MOVE.NEUTRAL);
+			    flag = true;
+			}
 		    }
 		    input=br.readLine();
 		}
@@ -242,7 +272,7 @@ public class DecisionTree extends Controller<MOVE>{
 	super();
 	System.out.println("Constructor");
 
-	ArrayList<Individual> training = new ArrayList<Individual>();
+	HashSet<Individual> training = new HashSet<Individual>();
 
 	File f = new File("trainingData");
 	if (f.exists()){
@@ -263,8 +293,21 @@ public class DecisionTree extends Controller<MOVE>{
 	makeTree(training);
     }
 
-    private void makeTree(ArrayList<Individual> training){
-	//Save tree as member of Controller
+    private void makeTree(HashSet<Individual> training){
+	HashSet<Integer> attributes = new HashSet<Integer>();
+	for (Attribute a: Attribute.values()){
+	    attributes.add(a);
+	}
+	makeTree(this.root, training, attributes, MOVE.NEUTRAL);
+    }
+
+    private void makeTree(Node n, HashSet<Individual> examples,
+			  HashSet<Integer> attributes, MOVE parentPlurality){
+	//if nothing left
+	if (examples.size() == 0) { return parentPlurality; }
+	//if everything is the same
+	
+	//if no attributes left
     }
 
     public MOVE getMove(Game game, long timeDue) {
