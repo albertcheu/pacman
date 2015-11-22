@@ -18,7 +18,9 @@ import java.io.PrintWriter;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.EnumMap;
+import java.util.Iterator;
 
 public class DecisionTree extends Controller<MOVE>{
 
@@ -28,19 +30,12 @@ public class DecisionTree extends Controller<MOVE>{
     private Random rnd=new Random();
     private Node root;
 
-    public enum Attribute {MAZE,JUNCTION,PILL,POWER,HUNT,FLEE};
+    public enum Attribute {PILL,POWER,HUNT,FLEE};
     public class Individual{
-	public int mazeIndex, junction;
-	public MOVE m, pillMove, powerPillMove, huntMove, fleeMove;
-	    
-	public Individual(){
-
-	}
-	public Individual(int mazeIndex, int junction, MOVE pillMove,
-			  MOVE powerPillMove, MOVE huntMove, MOVE fleeMove,
-			  MOVE m){
-	    this.mazeIndex = mazeIndex;
-	    this.junction = junction;
+	public MOVE m, pillMove, powerPillMove, huntMove, fleeMove;	    
+	public Individual(){}
+	public Individual(MOVE pillMove, MOVE powerPillMove,
+			  MOVE huntMove, MOVE fleeMove, MOVE m){
 	    this.pillMove = pillMove;
 	    this.powerPillMove = powerPillMove;
 	    this.huntMove = huntMove;
@@ -50,15 +45,20 @@ public class DecisionTree extends Controller<MOVE>{
     };
 
     public class Node{
-	public Attribute a;
 	public MOVE decision;
+	public boolean leaf;
+	public Attribute a;
 	public ArrayList<Node> children;
 
 	public Node(){}
-	public Node(Attribute a, MOVE decision){
-	    this.a = a;
+	public Node(Attribute a){
+	    this.a = a;	 
+	    this.children = new ArrayList<Node>();
+	    this.leaf = false;
+	}
+	public Node(MOVE decision){
 	    this.decision = decision;
-	    children = new ArrayList<Node>();
+	    this.leaf = true;
 	}
     };
     
@@ -69,8 +69,6 @@ public class DecisionTree extends Controller<MOVE>{
         pair with next "lastMoveMade"
 	Load into Game object
 	if pacman is @ a junction, obtain & save the following
-	  maze index
-	  which junction index
 	  the move that brings us closer to the closest pill
 	  the move that brings us closer to the closest power pill
 	  the move that brings us closer to the closest edible ghost
@@ -161,16 +159,14 @@ public class DecisionTree extends Controller<MOVE>{
 		    //System.out.println(input);
 		    String[] values=input.split(",");
 		    int index = 0;
-		    int mazeIndex = Integer.parseInt(values[index++]);
-		    int junction = Integer.parseInt(values[index++]);
 
 		    MOVE pillMove = MOVE.valueOf(values[index++]);
 		    MOVE powerPillMove = MOVE.valueOf(values[index++]);
 		    MOVE huntMove = MOVE.valueOf(values[index++]);
 		    MOVE fleeMove = MOVE.valueOf(values[index++]);
 		    MOVE m = MOVE.valueOf(values[index++]);
-		    training.add(new Individual(mazeIndex,junction,pillMove,
-						powerPillMove,huntMove,fleeMove,m));
+		    training.add(new Individual(pillMove,powerPillMove,
+						huntMove,fleeMove,m));
 		}
 		input=br.readLine();
 	    }
@@ -183,12 +179,11 @@ public class DecisionTree extends Controller<MOVE>{
 	    FileOutputStream outS=new FileOutputStream("trainingData",true);
 	    PrintWriter pw=new PrintWriter(outS);
 
-	    for(int i = 0; i < training.size(); i++){
-		Individual ind = training.get(i);
+	    for(Individual ind: training){
+		//Individual ind = training.get(i);
 		StringBuilder sb=new StringBuilder();
-		sb.append(ind.mazeIndex+","+ind.junction+","+ind.pillMove+","+
-			  ind.powerPillMove+","+ind.huntMove+","+ind.fleeMove+","+
-			  ind.m);
+		sb.append(ind.pillMove+","+ind.powerPillMove+","+
+			  ind.huntMove+","+ind.fleeMove+","+ind.m);
 		pw.println(sb.toString());
 		pw.flush();
 	    }
@@ -196,19 +191,6 @@ public class DecisionTree extends Controller<MOVE>{
 	    outS.close();
 	}
 	catch(IOException ioe){}
-    }
-
-    private int binSearch(int[] junctions, int j){
-	//guaranteed to have j in junctions
-	int left = 0; int right = junctions.length-1;
-	int mid = (right+left)/2;
-	while(junctions[mid]!=j){
-	    if (left+1==right) { mid = right; break; }
-	    if (junctions[mid]>j) { right = mid; }
-	    else { left = mid; }
-	    mid = (right+left)/2;
-	}
-	return mid;
     }
 
     private void readRecordings(HashSet<Individual> training){
@@ -232,8 +214,6 @@ public class DecisionTree extends Controller<MOVE>{
 		    if (!input.equals("")) {
 
 			//System.out.println(input);
-			String[] values=input.split(",");
-			int mazeIndex = Integer.parseInt(values[0]);
 			state.setGameState(input);
 			int pnode = state.getPacmanCurrentNodeIndex();
 			if (!state.isJunction(pnode)){
@@ -248,14 +228,13 @@ public class DecisionTree extends Controller<MOVE>{
 			}
 
 			else {
-			    int j = binSearch(junctions,pnode);
 			    MOVE pillMove = closer2Pill(state,pnode);
 			    MOVE powerPillMove = closer2Power(state,pnode);
 			    MOVE huntMove = closer2Ghost(state,pnode);
 			    MOVE fleeMove = furtherGhost(state,pnode);
-			    ind = new Individual(mazeIndex, j, pillMove,
-						 powerPillMove, huntMove,
-						 fleeMove, MOVE.NEUTRAL);
+			    ind = new Individual(pillMove,powerPillMove,
+						 huntMove,fleeMove,
+						 MOVE.NEUTRAL);
 			    flag = true;
 			}
 		    }
@@ -294,20 +273,136 @@ public class DecisionTree extends Controller<MOVE>{
     }
 
     private void makeTree(HashSet<Individual> training){
-	HashSet<Integer> attributes = new HashSet<Integer>();
+	HashSet<Attribute> attributes = new HashSet<Attribute>();
 	for (Attribute a: Attribute.values()){
 	    attributes.add(a);
 	}
-	makeTree(this.root, training, attributes, MOVE.NEUTRAL);
+	this.root = makeTree(training, attributes, MOVE.NEUTRAL);
     }
 
-    private void makeTree(Node n, HashSet<Individual> examples,
-			  HashSet<Integer> attributes, MOVE parentPlurality){
+    private float info(HashSet<Individual> examples){
+	float ans = 0;
+	HashMap<MOVE,HashSet<Individual> > move2subset = new HashMap<MOVE,HashSet<Individual> >();
+	partition(examples,Attribute.PILL,move2subset,true,false);
+	for(MOVE m: allMoves){
+	    ans += (float)move2subset.get(m).size() / examples.size();
+	}
+	return -ans;
+    }
+
+    private Attribute bestAttribute(HashSet<Individual> examples,
+				    HashSet<Attribute> attributes){
+	Attribute ans = Attribute.FLEE;
+	float maxGain = 0;
+
+	for (Attribute a: Attribute.values()){
+	    float info_a = 0;
+	    HashMap<MOVE,HashSet<Individual> > move2subset = new HashMap<MOVE,HashSet<Individual> >();
+	    partition(examples, a, move2subset, false, false);
+	    for (MOVE m: allMoves){
+		HashSet<Individual> subset = move2subset.get(m);
+		info_a += info(subset) * subset.size() / examples.size();
+	    }
+
+	    float gain = info(examples) - info_a;
+
+	    if (gain > maxGain){
+		maxGain = gain;
+		ans = a;
+	    }
+	}
+
+	return ans;
+    }
+
+    private void partition(HashSet<Individual> examples, Attribute a,
+			   HashMap<MOVE,HashSet<Individual> > move2subset,
+			   boolean agnostic, boolean destructive){
+
+	for(Iterator<Individual> i = examples.iterator(); i.hasNext();){
+	    Individual ind = i.next();
+
+	    MOVE m = ind.m;
+	    if (!agnostic) {
+		switch(a){
+		case PILL: m = ind.pillMove;
+		    break;
+		case POWER: m = ind.powerPillMove;
+		    break;
+		case HUNT: m = ind.huntMove;
+		    break;
+		case FLEE: m = ind.fleeMove;
+		    break;
+		}
+	    }
+
+	    HashSet<Individual> subset = move2subset.get(m);
+	    if (subset == null) { subset = new HashSet<Individual>(); }
+	    subset.add(ind);
+	    if (destructive) { i.remove(); }
+	    move2subset.put(m,subset);
+	}
+    }
+
+    private Node makeTree(HashSet<Individual> examples,
+			  HashSet<Attribute> attributes,
+			  MOVE parentPlurality){
 	//if nothing left
-	if (examples.size() == 0) { return parentPlurality; }
+	if (examples.size() == 0) { return new Node(parentPlurality); }
+
+	HashMap<MOVE,Integer> freq = new HashMap<MOVE,Integer>();
+
+	MOVE label = MOVE.NEUTRAL;
+	boolean first = true;
+	boolean same = true;
+	MOVE plurality = MOVE.NEUTRAL;
+	int maxFreq = 0;
+	for(Individual ind: examples){
+	    if (first) {
+		label = ind.m;
+		first = false;
+	    }
+	    else if (label != ind.m) { same = false; }
+
+	    Integer n = freq.get(ind.m);
+	    if(n == null) { freq.put(ind.m,1); }
+	    else { freq.put(ind.m,n+1); }
+	    if (freq.get(ind.m) > maxFreq) {
+		maxFreq = freq.get(ind.m);
+		plurality = ind.m;
+	    }
+	}
+
 	//if everything is the same
-	
+	if (same) { return new Node(label); }
+
 	//if no attributes left
+	if (attributes.size() == 0) { return new Node(plurality); }
+
+	//get attribute with most gain
+	Attribute a = bestAttribute(examples,attributes);
+	//make node for attribute
+	Node ans = new Node(a);
+
+	//add child for each value of attribute
+	attributes.remove(a);
+	HashMap<MOVE,HashSet<Individual> > move2subset = new HashMap<MOVE,HashSet<Individual> >();
+	partition(examples,a,move2subset,false,true);
+
+	for(MOVE m: allMoves){
+	    HashSet<Individual> subset = move2subset.get(m);
+	    Node child = makeTree(subset,attributes,plurality);
+	    ans.children.add(child);
+	    
+	    //Restore examples
+	    examples.addAll(subset);
+	    move2subset.remove(m);
+	}
+
+	//Restore attributes
+	attributes.add(a);
+
+	return ans;
     }
 
     public MOVE getMove(Game game, long timeDue) {
