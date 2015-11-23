@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.EnumMap;
 import java.util.Iterator;
+import java.lang.Math;
 
 public class DecisionTree extends Controller<MOVE>{
 
@@ -202,14 +203,20 @@ public class DecisionTree extends Controller<MOVE>{
 
 	for (File child : directoryListing) {
 	    try{
-		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream(child.getName())));
+		System.out.println("About to read file "+child.getName());
+
+		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("recordings/"+child.getName())));
+		//System.out.println("Made br");
+
 		String input=br.readLine();
+		//System.out.println("Read first line");
+
 		state.setGameState(input);
-		int[] junctions = state.getJunctionIndices();
+		//System.out.println("Loaded state");
 
 		Individual ind = new Individual();
 		boolean flag = false;
-		System.out.println("About to read file "+child.getName());
+
 		while(input!=null){
 		    if (!input.equals("")) {
 
@@ -281,11 +288,14 @@ public class DecisionTree extends Controller<MOVE>{
     }
 
     private float info(HashSet<Individual> examples){
+	if (examples.size() == 0) { return 0; }
 	float ans = 0;
 	HashMap<MOVE,HashSet<Individual> > move2subset = new HashMap<MOVE,HashSet<Individual> >();
 	partition(examples,Attribute.PILL,move2subset,true,false);
 	for(MOVE m: allMoves){
-	    ans += (float)move2subset.get(m).size() / examples.size();
+	    if (move2subset.get(m) == null) { continue; }
+	    float p = (float)move2subset.get(m).size() / examples.size();
+	    ans += p * Math.log(p) / Math.log(2);
 	}
 	return -ans;
     }
@@ -300,6 +310,7 @@ public class DecisionTree extends Controller<MOVE>{
 	    HashMap<MOVE,HashSet<Individual> > move2subset = new HashMap<MOVE,HashSet<Individual> >();
 	    partition(examples, a, move2subset, false, false);
 	    for (MOVE m: allMoves){
+		if (move2subset.get(m) == null) { continue; }
 		HashSet<Individual> subset = move2subset.get(m);
 		info_a += info(subset) * subset.size() / examples.size();
 	    }
@@ -376,8 +387,8 @@ public class DecisionTree extends Controller<MOVE>{
 	//if everything is the same
 	if (same) { return new Node(label); }
 
-	//if no attributes left
-	if (attributes.size() == 0) { return new Node(plurality); }
+	//if no attributes left or size is too small
+	if (attributes.size() == 0 || examples.size() < 10) { return new Node(plurality); }
 
 	//get attribute with most gain
 	Attribute a = bestAttribute(examples,attributes);
@@ -391,6 +402,7 @@ public class DecisionTree extends Controller<MOVE>{
 
 	for(MOVE m: allMoves){
 	    HashSet<Individual> subset = move2subset.get(m);
+	    if (subset == null) { subset = new HashSet<Individual>(); }
 	    Node child = makeTree(subset,attributes,plurality);
 	    ans.children.add(child);
 	    
@@ -405,8 +417,37 @@ public class DecisionTree extends Controller<MOVE>{
 	return ans;
     }
 
+    private MOVE traverse(Node n, Game state, int pnode){
+	if (n.leaf) { return n.decision; }
+
+	MOVE whichMove = MOVE.NEUTRAL;
+	switch(n.a){
+	case PILL: whichMove = closer2Pill(state, pnode);
+	    break;
+	case POWER: whichMove = closer2Power(state, pnode);
+	    break;
+	case HUNT: whichMove = closer2Ghost(state, pnode);
+	    break;
+	case FLEE: whichMove = furtherGhost(state, pnode);
+	    break;
+	}
+	int whichChild = 0;
+	for(int i = 0; i < 5; i++){
+	    if(whichMove == allMoves[i]) { whichChild = i; }
+	}
+	return traverse(n.children.get(whichChild), state, pnode);
+    }
+
     public MOVE getMove(Game game, long timeDue) {
+	int pnode = game.getPacmanCurrentNodeIndex();
+
+	if (!game.isJunction(pnode)) {
+	    MOVE lastMoveMade = game.getPacmanLastMoveMade();
+	    MOVE[] possibles = game.getPossibleMoves(pnode,lastMoveMade);
+	    return possibles[0];
+	}
+
 	//Use the tree
-	return MOVE.NEUTRAL;
+	return traverse(this.root, game, pnode);
     }
 }
