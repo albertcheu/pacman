@@ -15,7 +15,7 @@ import java.util.EnumMap;
 public class Annealer extends Controller<MOVE>{
     private MOVE[] allMoves = MOVE.values();
     private Legacy lg = new Legacy();
-    private int C = 6;
+    private int C = 4;
 
     private Random rnd=new Random();
 
@@ -114,7 +114,7 @@ public class Annealer extends Controller<MOVE>{
 	    
 	    int s = score(copy);
 	    double temp = cooldown(t++);
-	    if (s > bestScore) {
+	    if (s!= Integer.MIN_VALUE && s > bestScore) {
 		bestMove = firstMove;
 		bestScore = s;
 	    }

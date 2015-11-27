@@ -69,7 +69,7 @@ public class HillClimber extends Controller<MOVE>{
 	MOVE bestMove = MOVE.NEUTRAL;
 
 	//Loop until we run out of time
-	while (timeDue-1 > System.currentTimeMillis()){
+	while (timeDue-4 > System.currentTimeMillis()){
 	    Game copy = game.copy();
 
 	    //Make a random change to our move sequence
@@ -92,11 +92,12 @@ public class HillClimber extends Controller<MOVE>{
 
 		MOVE lastMove = copy.getPacmanLastMoveMade();
 		MOVE[] possible = copy.getPossibleMoves(pnode, lastMove);
-		//MOVE[] possible = copy.getPossibleMoves(pnode);
 		MOVE m = possible[0];
 		//Make a turn
 		if (possible.length > 1) {
 		    if (c == C) { break; }
+		    //Permit backtracking upon hitting a junction
+		    //possible = copy.getPossibleMoves(pnode);
 		    m = possible[choices.get(c++) % possible.length];
 		}
 		

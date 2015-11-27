@@ -16,8 +16,8 @@ public class MuLambda extends Controller<MOVE>{
     private MOVE[] allMoves = MOVE.values();
     private Legacy lg = new Legacy();
     private int C = 4;
-    private int MU = 18;
-    private int LAMBDA = 24;
+    private int MU = 12;
+    private int LAMBDA = 14;
 
     private Random rnd=new Random();
 
@@ -131,10 +131,9 @@ public class MuLambda extends Controller<MOVE>{
 
 	    //Make a random sequence of turns
 	    ArrayList<Integer> choices = new ArrayList<Integer>();
-	    //actually semi-random, since we want to sample from every possible first turn
-	    choices.add(i%6);
-	    for(int j = 1; j < C; j++){
-		choices.add(rnd.nextInt(6));		
+
+	    for(int j = 0; j < C; j++){
+		choices.add(rnd.nextInt(6));
 	    }
 
 	    //Take them

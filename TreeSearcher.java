@@ -48,9 +48,17 @@ import java.util.EnumMap;
 public class TreeSearcher extends Controller<MOVE>{
 
     private Legacy lg = new Legacy();
-    private int C = 40;
+    private int C = 4;
     private Random rnd=new Random();
     private MOVE[] allMoves = MOVE.values();
+
+    //boolean flag tells whether to use bounded-BFS (true) or DLS (false)
+    private boolean breadthFirst;
+
+    public TreeSearcher(boolean b){
+	super();
+	this.breadthFirst = b;
+    }
 
     //Evaluates game state
     private int score(Game state){
@@ -83,8 +91,7 @@ public class TreeSearcher extends Controller<MOVE>{
     }
 
     //Returns first step in best sequence
-    //boolean flag tells whether to use bounded-BFS (true) or DLS (false)
-    private MOVE treeSearch(Game game, long timeDue, boolean breadthFirst){
+    private MOVE treeSearch(Game game, long timeDue){
 
 	//Entries in the search queue
 	class Entry{
@@ -111,16 +118,15 @@ public class TreeSearcher extends Controller<MOVE>{
 	LinkedList<Entry> q = new LinkedList<Entry>();
 	//Initialize our search space (firstMove=bestMove=dummy value for now)
 	Entry init = new Entry(bestMove,game,0);
-	if (breadthFirst) { q.add(init); } else { q.push(init); }
+	if (this.breadthFirst) { q.add(init); } else { q.push(init); }
 
 	while(q.size() != 0){
-	    Entry e = breadthFirst ? q.remove() : q.pop();
+	    Entry e = this.breadthFirst ? q.remove() : q.pop();
 
 	    //Location and available moves for pacman
 	    int index = e.state.getPacmanCurrentNodeIndex();
 	    MOVE lastMove = e.state.getPacmanLastMoveMade();
 	    MOVE[] pacmanMoves = e.state.getPossibleMoves(index,lastMove);
-	    //MOVE[] pacmanMoves = e.state.getPossibleMoves(index);
 
 	    EnumMap<GHOST,MOVE> ghostMove = lg.getMove(e.state,
 						       System.currentTimeMillis()+4);
@@ -148,11 +154,12 @@ public class TreeSearcher extends Controller<MOVE>{
 		}
 
 		//Go deeper
-		Entry child = new Entry(e.firstMove,copy,e.depth+1);
+		int childDepth = ((pacmanMoves.length>1)?e.depth+1:e.depth);
+		Entry child = new Entry(e.firstMove,copy,childDepth);
 		//Save the first move we make
 		if (e.depth == 0) { child.firstMove = pacmanMoves[i]; }
 
-		if (breadthFirst) { q.add(child); } else { q.push(child); }
+		if (this.breadthFirst) { q.add(child); } else { q.push(child); }
 	    }
 
 	}
@@ -161,9 +168,14 @@ public class TreeSearcher extends Controller<MOVE>{
     }
 
     public MOVE getMove(Game game, long timeDue) {
+	int index = game.getPacmanCurrentNodeIndex();
+	MOVE lastMove = game.getPacmanLastMoveMade();
+	MOVE[] pacmanMoves = game.getPossibleMoves(index,lastMove);
+	if (pacmanMoves.length == 1) { return pacmanMoves[0]; }
+
 	MOVE ans;
 
-	ans = treeSearch(game,timeDue,false);
+	ans = treeSearch(game,timeDue);
 
 	return ans;
     }

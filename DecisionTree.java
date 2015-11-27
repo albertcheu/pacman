@@ -203,7 +203,7 @@ public class DecisionTree extends Controller<MOVE>{
 
 	for (File child : directoryListing) {
 	    try{
-		System.out.println("About to read file "+child.getName());
+		//System.out.println("About to read file "+child.getName());
 
 		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("recordings/"+child.getName())));
 		//System.out.println("Made br");
@@ -255,27 +255,26 @@ public class DecisionTree extends Controller<MOVE>{
     }
 
     public DecisionTree(){
-	super();
-	System.out.println("Constructor");
+	super();	
 
 	HashSet<Individual> training = new HashSet<Individual>();
 
 	File f = new File("trainingData");
 	if (f.exists()){
-	    System.out.println("Reading in training data...");
+	    //System.out.println("Reading in training data...");
 	    readTraining(training);
-	    System.out.println(training.size());
+	    //System.out.println(training.size());
 	}
 
 	else{
-	    System.out.println("Reading in raw gameplay data...");
+	    //System.out.println("Reading in raw gameplay data...");
 	    readRecordings(training);
-	    System.out.println(training.size());
+	    //System.out.println(training.size());
 	    System.out.println("Writing out training data...");
 	    writeTraining(training);
 	}
 
-	System.out.println("Making tree...");
+	//System.out.println("Making tree...");
 	makeTree(training);
     }
 
