@@ -62,12 +62,13 @@ public class Qlearner extends Controller<MOVE>{
 	File f = new File("qData");
 	if (f.exists()){
 	    try{
-		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("trainingData")));
+		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("qData")));
 		String input=br.readLine();
 		int count = 0;
 		while(input!=null){
-		    double val = Doulbe.parseDouble(input);
+		    double val = Double.parseDouble(input);
 		    this.Q.get(count/allMoves.length).set(count%allMoves.length,val);
+		    input=br.readLine();
 		    count++;
 		}
 	    }
@@ -311,10 +312,13 @@ public class Qlearner extends Controller<MOVE>{
 	if (!game.isJunction(pnode)) {
 	    MOVE lastMoveMade = game.getPacmanLastMoveMade();
 	    MOVE[] possibles = game.getPossibleMoves(pnode,lastMoveMade);
+	    writeFile(game, possibles[0]);
 	    return possibles[0];
 	}
 
 	//else
-	return qlearn(game, timeDue);
+	MOVE m = qlearn(game, timeDue);
+	writeFile(game, m);
+	return m;
     }
 }
