@@ -32,32 +32,49 @@ public class Qlearner extends Controller<MOVE>{
     private int C = 4;
 
     //Learning rate
-    private double ALPHA = 0.9;
+    private double ALPHA = 0.2;
 
     //Discount rate for Q learning
     private double GAMMA = 0.3;
 
-    //Chance to pick a "bad" move, as a percentage
-    private int EPSILON = 5;
+    //Chance to pick a random move, as a percentage
+    private int EPSILON = 2;
 
     private Random rnd=new Random();
 
     //What we are optimizing
-    private ArrayList<ArrayList<double> > Q;
+    private ArrayList<ArrayList<Double> > Q;
 
 
     public Qlearner(){
 
 	super();	
 
-	Q = new Arraylist<ArrayList<double> >();
+	this.Q = new ArrayList<ArrayList<Double> >();
 	//2^16 states
 	for (int i = 0 ; i < Math.pow(2.0,16.0); i++) {
-	    Q.add(new ArrayList<double>());
+	    this.Q.add(new ArrayList<Double>());
 	    for (int j = 0; j < allMoves.length; j++) {
-		Q.get(i).add(0);
+		this.Q.get(i).add((double)rnd.nextInt(30));
 	    }
 	}
+
+	File f = new File("qData");
+	if (f.exists()){
+	    try{
+		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("trainingData")));
+		String input=br.readLine();
+		int count = 0;
+		while(input!=null){
+		    double val = Doulbe.parseDouble(input);
+		    this.Q.get(count/allMoves.length).set(count%allMoves.length,val);
+		    count++;
+		}
+	    }
+
+	    catch(IOException ioe){}
+	}
+
 
     }
 
@@ -141,7 +158,13 @@ public class Qlearner extends Controller<MOVE>{
 	s += 512 * closer2Power(copy, pnode).ordinal();
 	s += (copy.wasPillEaten()?4096:0);
 	s += (copy.wasPowerPillEaten()?8192:0);
-	s += (copy.wasGhostEaten()?16384:0);
+
+	for(GHOST g: GHOST.values()){
+	    if (copy.wasGhostEaten(g)) {
+		s += 16384;
+		break;
+	    }
+	}
 	s += (copy.wasPillEaten()?32768:0);
 	
 	return s;
@@ -151,14 +174,27 @@ public class Qlearner extends Controller<MOVE>{
 	//epsilon-greedily choose a MOVE m from Q using s
 
 	//roll a 100 sided die
+	int x = rnd.nextInt(100);
 	//if the number is under EPSILON, pick a random move
+	if (x <= EPSILON) {
+	    return allMoves[rnd.nextInt(allMoves.length)];
+	}
 	//Otherwise do the following
 
 	//Access the s-th row of Q
+	ArrayList<Double> row = Q.get(s);
 	//Loop thru columns and obtain best entry
 	//Get that column index i
 	//return allMoves[i]
-
+	double bestVal = -Double.MAX_VALUE;
+	int bestIndex = 0;
+	for (int i = 0; i < row.size(); i++){
+	    if (row.get(i) > bestVal) {
+		bestVal = row.get(i);
+		bestIndex = i;
+	    }
+	}
+	return allMoves[bestIndex];
     }
     
     private int reward(Game copy){
@@ -167,7 +203,9 @@ public class Qlearner extends Controller<MOVE>{
 
 	if (copy.wasPillEaten()) { r += 5; }
 	if (copy.wasPowerPillEaten()) { r += 10; }
-	if (copy.wasGhostEaten()) { r += 15; }
+	for (GHOST g: GHOST.values()) {
+	    if (copy.wasGhostEaten(g)) { r += 15; }
+	}
 	if (copy.wasPacManEaten()) { r -= 70; }
 
 	return r;
@@ -175,7 +213,16 @@ public class Qlearner extends Controller<MOVE>{
 
     private double expectation(int s2){
 	//Access the s2-th row of Q
+	ArrayList<Double> row = Q.get(s2);
 	//Loop thru columns and return best entry
+	double bestVal = -Double.MAX_VALUE;
+
+	for (int i = 0; i < row.size(); i++){
+	    if (row.get(i) > bestVal) {
+		bestVal = row.get(i);
+	    }
+	}
+	return bestVal;
     }
 
     private void updateQ(int s, MOVE m, int r, int s2){
@@ -211,7 +258,7 @@ public class Qlearner extends Controller<MOVE>{
 	    int c = 0;
 	    while(c < C){
 
-		if (copy.numLivesRemaining() == 0){ break; }
+		if (copy.gameOver()){ break; }
 
 		//In tunnel
 		int pnode = copy.getPacmanCurrentNodeIndex();
@@ -233,6 +280,28 @@ public class Qlearner extends Controller<MOVE>{
 		updateQ(s,m,r,s2);
 		s = s2;
 	    }
+	}
+	return chooseMove(state2number(game));
+    }
+
+    private void writeFile(Game game, MOVE m){
+	Game copy = game.copy();
+	copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
+	if (copy.gameOver()) {
+	    try{
+		FileOutputStream outS=new FileOutputStream("qData",true);
+		PrintWriter pw=new PrintWriter(outS);
+
+		for(int i = 0; i < Q.size(); i++){
+		    for(int j = 0; j < allMoves.length; j++){
+			pw.println(Q.get(i).get(j).toString());
+			pw.flush();
+		    }
+		}
+
+		outS.close();
+	    }
+	    catch(IOException ioe){}
 	}
     }
 
