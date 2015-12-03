@@ -32,7 +32,7 @@ public class Qlearner extends Controller<MOVE>{
     private int C = 4;
 
     //Learning rate
-    private double ALPHA = 0.2;
+    private double ALPHA = 0.8;
 
     //Discount rate for Q learning
     private double GAMMA = 0.3;
@@ -40,136 +40,202 @@ public class Qlearner extends Controller<MOVE>{
     //Chance to pick a random move, as a percentage
     private int EPSILON = 2;
 
+    //for the function directionalData
+    //4 := there is a dangerous ghost on my DIR
+    //3 := there is an edible ghost on my DIR
+    //2 := there is a pill to my DIR
+    //1 := there is a wall to my DIR
+    //0 := there is nothing to my DIR
+    private int DANGER = 4;
+    private int EDIBLE = 3;
+    private int PILL = 2;
+    private int WALL = 1;
+    private int NOTHING = 0;
+
     private Random rnd=new Random();
 
     //What we are optimizing
     private ArrayList<ArrayList<Double> > Q;
 
-
     public Qlearner(){
+	super();
 
-	super();	
-
-	this.Q = new ArrayList<ArrayList<Double> >();
-	//2^16 states
-	for (int i = 0 ; i < Math.pow(2.0,16.0); i++) {
-	    this.Q.add(new ArrayList<Double>());
-	    for (int j = 0; j < allMoves.length; j++) {
-		this.Q.get(i).add((double)rnd.nextInt(30));
-	    }
-	}
-
+	Q = new ArrayList<ArrayList<Double> >();
 	File f = new File("qData");
+
 	if (f.exists()){
 	    try{
 		BufferedReader br=new BufferedReader(new InputStreamReader(new FileInputStream("qData")));
 		String input=br.readLine();
 		int count = 0;
-		while(input!=null){
+		while(input!=null){//count<allMoves.length*Q.size()){
 		    double val = Double.parseDouble(input);
-		    this.Q.get(count/allMoves.length).set(count%allMoves.length,val);
+
+		    if ((count % allMoves.length) == 0) {
+			Q.add(new ArrayList<Double>());
+		    }
+		    Q.get(count/allMoves.length).add(val);
+
 		    input=br.readLine();
 		    count++;
 		}
+
+		System.out.println(Integer.toString(Q.size()));
 	    }
 
-	    catch(IOException ioe){}
+	    catch(IOException ioe){
+		System.out.println("File read error!");
+		//exit(0);
+	    }
 	}
 
+	else {
+
+	    //10,000 states, but we need 2^14 space (the way I represent states)
+	    for (int i = 0 ; i < Math.pow(2.0,14.0); i++) {
+		Q.add(new ArrayList<Double>());
+		for (MOVE m: allMoves){
+		    //never do move.neutral
+		    if (m == MOVE.NEUTRAL){
+			Q.get(i).add(-Double.MAX_VALUE);
+			continue;
+		    }
+		    //if pacman has a wall to the DIR, forbid moves in DIR
+		    int j = m.ordinal();
+		    int data = (i / (int)Math.pow(2.0,(double) (2+3*j) )) % 8;//3 bits
+		    if (data == WALL) {
+			Q.get(i).add(-Double.MAX_VALUE);
+		    }
+		    else { Q.get(i).add(0.0); }
+		}
+	    }
+
+	}
 
     }
 
-    private MOVE closer2Power(Game state, int pnode){
-	MOVE ans = MOVE.NEUTRAL;
+    private boolean danger(Game copy, int n, MOVE dir){
+	//Scan to the dir and see if there is an inedible ghost
+	while (! copy.isJunction(n)) {
 
-	int shortest2pill = Integer.MAX_VALUE;
-	int pillIndex = 0;
-	//Find distances to power pills
-	for(int i: state.getActivePowerPillsIndices()){
-	    int dist = state.getShortestPathDistance(pnode,i);
-	    if (dist < shortest2pill) {
-		shortest2pill = dist;
-		pillIndex = i;		
+	    for(GHOST g: GHOST.values()){
+		if (copy.getGhostCurrentNodeIndex(g) == n) {
+		    if (!copy.isGhostEdible(g) &&
+			copy.getGhostLastMoveMade(g) == dir.opposite()) {
+			return true;
+		    }
+		}
 	    }
-	}
 
-	if (shortest2pill != Integer.MAX_VALUE)
-	    { ans = state.getNextMoveTowardsTarget(pnode,pillIndex,DM.PATH); }
-	return ans;
+	    int newIndex = copy.getNeighbour(n,dir);
+	    if (newIndex == -1) {
+		MOVE[] possibles = copy.getPossibleMoves(n,dir);
+		dir = possibles[0];
+	    }
+	    n = copy.getNeighbour(n,dir);
+	}	
+	return false;
     }
 
-    private MOVE closer2Pill(Game state, int pnode){
-	int shortest2pill = Integer.MAX_VALUE;
-	int pillIndex = 0;
-	//Find distances to pills
-	for(int i: state.getActivePillsIndices()){
-	    int dist = state.getShortestPathDistance(pnode,i);
-	    if (dist < shortest2pill) {
-		shortest2pill = dist;
-		pillIndex = i;
+    private boolean pill(Game copy, int n, MOVE dir){
+	//Scan to the dir and see if there is a pill
+	while (! copy.isJunction(n)) {
+	    int pIndex = copy.getPillIndex(n);
+	    if (pIndex > -1 && copy.isPillStillAvailable(pIndex)) {
+		return true;
 	    }
-	}
-	return state.getNextMoveTowardsTarget(pnode,pillIndex,DM.PATH);
+	    int newIndex = copy.getNeighbour(n,dir);
+	    if (newIndex == -1) { return false; }
+	    n = newIndex;
+	}	
+
+	return false;
     }
 
-    private MOVE closer2Ghost(Game state, int pnode){
-	MOVE ans = MOVE.NEUTRAL;
-	int shortest2edible = Integer.MAX_VALUE;
-	int gnode = 0;
-	for(GHOST g: GHOST.values()){
-	    int i = state.getGhostCurrentNodeIndex(g);
-	    int dist = state.getShortestPathDistance(pnode,i);
-	    if (state.isGhostEdible(g) && dist < shortest2edible){
-		shortest2edible = dist;
-		gnode = i;
+    private boolean edible(Game copy, int n, MOVE dir){
+	//Scan to the dir and see if there is an edible ghost
+	while (! copy.isJunction(n)) {
+	    for(GHOST g: GHOST.values()){
+		if (copy.getGhostCurrentNodeIndex(g) == n) {
+		    if (copy.isGhostEdible(g) &&
+			copy.getGhostLastMoveMade(g) == dir.opposite()) {
+			return true;
+		    }
+		}
 	    }
-	}
-	if (shortest2edible != Integer.MAX_VALUE){
-	    ans = state.getNextMoveTowardsTarget(pnode,gnode,DM.PATH);
-	}
-	return ans;
+
+	    int newIndex = copy.getNeighbour(n,dir);
+	    if (newIndex == -1) {
+		MOVE[] possibles = copy.getPossibleMoves(n,dir);
+		dir = possibles[0];
+	    }
+	    n = copy.getNeighbour(n,dir);
+
+	}	
+
+	return false;
     }
 
-    private MOVE furtherGhost(Game state, int pnode){
-	MOVE ans = MOVE.NEUTRAL;
-	int shortest2inedible = Integer.MAX_VALUE;
-	int gnode = 0;
-	for(GHOST g: GHOST.values()){
-	    int i = state.getGhostCurrentNodeIndex(g);
-	    int dist = state.getShortestPathDistance(pnode,i);
-	    if (!state.isGhostEdible(g) && dist < shortest2inedible){
-		shortest2inedible = dist;
-		gnode = i;
-	    }
-	}
-	if (shortest2inedible != Integer.MAX_VALUE){
-	    ans = state.getNextMoveAwayFromTarget(pnode,gnode,DM.PATH);
-	}
-	return ans;
+    private int directionalData(Game copy, int pnode, MOVE dir){
+	int n = copy.getNeighbour(pnode, dir);
+	if (n == -1) { return WALL; }
+	if (danger(copy, n, dir)) { return DANGER; }
+	if (edible(copy, n, dir)) { return EDIBLE; }
+	if (pill(copy, n, dir)) { return PILL; }
+	return NOTHING;
     }
 
     private int state2number(Game copy){
 	//Obtain state number s from features in current game copy
-	//Uses features checked in reward(copy) as well as the four functions preceding this one
-	int pnode = copy.getPacmanCurrentNodeIndex();
+	//Uses features checked in reward(copy) as well as the function preceding this one
+	int pnode = copy.getPacmanCurrentNodeIndex();	
+	int s = 0;
+	
+	//bit 0: was pacman eaten?
+	if (copy.wasPacManEaten()) { s += 1; }
+	//bit 1: was a pill eaten?
+	if (copy.wasPillEaten()) { s += 2; }
 
-	int s = closer2Ghost(copy, pnode).ordinal();
-	s += 8 * furtherGhost(copy, pnode).ordinal();
-	s += 64 * closer2Pill(copy, pnode).ordinal();
-	s += 512 * closer2Power(copy, pnode).ordinal();
-	s += (copy.wasPillEaten()?4096:0);
-	s += (copy.wasPowerPillEaten()?8192:0);
-
-	for(GHOST g: GHOST.values()){
-	    if (copy.wasGhostEaten(g)) {
-		s += 16384;
-		break;
-	    }
+	for (int i = 2; i < 14; i+=3){
+	    int moveIndex = (i-2)/3;
+	    s += Math.pow(2.0,(double)i)*
+		directionalData(copy, pnode, allMoves[moveIndex]);
 	}
-	s += (copy.wasPillEaten()?32768:0);
 	
 	return s;
     }
+
+    private int reward(int s){
+	//Derive reward r given a state number
+	int r = 0;
+
+	//bit 0: was pacman eaten?
+	if (s%2==1) { r -= 100; }
+	//bit 1: was a pill eaten?
+	if ((s/2)%2==1) { r += 10; }
+
+	//triplets of bits (directional data)
+	for (int i = 2; i < 14; i+=3){
+	    int data = (s / (int)Math.pow(2.0,(double)i)) % 8;//3 bits
+	    switch(data){
+	    case 4://incoming danger
+		r -= 5;
+		break;
+	    case 3://incoming edible
+		r += 5;
+		break;
+	    case 2://pill
+		r += 1;
+		break;
+	    case 1://wall
+		r -= 1;
+		break;
+	    }
+	}
+
+	return r;
+    }
+
 
     private MOVE chooseMove(int s){
 	//epsilon-greedily choose a MOVE m from Q using s
@@ -198,20 +264,6 @@ public class Qlearner extends Controller<MOVE>{
 	return allMoves[bestIndex];
     }
     
-    private int reward(Game copy){
-	//Derive reward r for new state
-	int r = 0;
-
-	if (copy.wasPillEaten()) { r += 5; }
-	if (copy.wasPowerPillEaten()) { r += 10; }
-	for (GHOST g: GHOST.values()) {
-	    if (copy.wasGhostEaten(g)) { r += 15; }
-	}
-	if (copy.wasPacManEaten()) { r -= 70; }
-
-	return r;
-    }
-
     private double expectation(int s2){
 	//Access the s2-th row of Q
 	ArrayList<Double> row = Q.get(s2);
@@ -261,23 +313,19 @@ public class Qlearner extends Controller<MOVE>{
 
 		if (copy.gameOver()){ break; }
 
-		//In tunnel
 		int pnode = copy.getPacmanCurrentNodeIndex();
-		MOVE lastMove = copy.getPacmanLastMoveMade();
-		if (! copy.isJunction(pnode)) {
-		    copy.advanceGame(lastMove,
-				     lg.getMove(copy, System.currentTimeMillis()+1));
-		    continue;
+		MOVE m = copy.getPacmanLastMoveMade();
+
+		if (copy.isJunction(pnode)) {
+		    c++;
+		    m = chooseMove(s);
 		}
 
-		//At junction
-		c++;
-		MOVE m = chooseMove(s);
 		copy.advanceGame(m,
 				 lg.getMove(copy, System.currentTimeMillis()+1));
-		int r = reward(copy);
-
 		int s2 = state2number(copy);
+		int r = reward(s2);
+
 		updateQ(s,m,r,s2);
 		s = s2;
 	    }
@@ -289,8 +337,9 @@ public class Qlearner extends Controller<MOVE>{
 	Game copy = game.copy();
 	copy.advanceGame(m, lg.getMove(copy, System.currentTimeMillis()+1));
 	if (copy.gameOver()) {
+
 	    try{
-		FileOutputStream outS=new FileOutputStream("qData",true);
+		FileOutputStream outS=new FileOutputStream("qData",false);
 		PrintWriter pw=new PrintWriter(outS);
 
 		for(int i = 0; i < Q.size(); i++){
@@ -309,15 +358,22 @@ public class Qlearner extends Controller<MOVE>{
     public MOVE getMove(Game game, long timeDue) {
 	int pnode = game.getPacmanCurrentNodeIndex();
 
+	MOVE m = MOVE.NEUTRAL;
 	if (!game.isJunction(pnode)) {
 	    MOVE lastMoveMade = game.getPacmanLastMoveMade();
 	    MOVE[] possibles = game.getPossibleMoves(pnode,lastMoveMade);
-	    writeFile(game, possibles[0]);
-	    return possibles[0];
+	    int s = state2number(game);
+	    Game copy = game.copy();
+	    m = possibles[0];
+	    copy.advanceGame(m,
+			     lg.getMove(copy, System.currentTimeMillis()+1));
+	    int s2 = state2number(copy);
+	    updateQ(s,m,reward(s2),s2);
+		    
 	}
 
-	//else
-	MOVE m = qlearn(game, timeDue);
+	else { m = qlearn(game, timeDue); }
+
 	writeFile(game, m);
 	return m;
     }
