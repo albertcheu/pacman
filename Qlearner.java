@@ -115,6 +115,20 @@ public class Qlearner extends Controller<MOVE>{
     }
 
     private boolean danger(Game copy, int n, MOVE dir){
+	/*
+	//is a dangerous ghost going to arrive at dir?
+	for(GHOST g: GHOST.values()){
+	    int gnode = copy.getGhostCurrentNodeIndex(g);
+	    if (!copy.isGhostEdible(g) &&
+		copy.getNextMoveTowardsTarget(pnode,gnode,DM.PATH) == dir
+		&&
+		copy.getNextMoveTowardsTarget(gnode,pnode,DM.PATH) == 
+		copy.getGhostLastMoveMade(g)){
+		return true;
+	    }
+	}
+	*/
+
 	//Scan to the dir and see if there is an inedible ghost
 	while (! copy.isJunction(n)) {
 
@@ -134,10 +148,26 @@ public class Qlearner extends Controller<MOVE>{
 	    }
 	    n = copy.getNeighbour(n,dir);
 	}	
+
 	return false;
     }
 
     private boolean pill(Game copy, int n, MOVE dir){
+	/*
+	//can we approach the closest pill by going to the dir?
+	int shortest2pill = Integer.MAX_VALUE;
+	int pillIndex = 0;
+	//Find distances to pills
+	for(int i: copy.getActivePillsIndices()){
+	    int dist = copy.getShortestPathDistance(pnode,i);
+	    if (dist < shortest2pill) {
+		shortest2pill = dist;
+		pillIndex = i;
+	    }
+	}
+	return copy.getNextMoveTowardsTarget(pnode,pillIndex,DM.PATH) == dir;
+	*/
+
 	//Scan to the dir and see if there is a pill
 	while (! copy.isJunction(n)) {
 	    int pIndex = copy.getPillIndex(n);
@@ -148,11 +178,29 @@ public class Qlearner extends Controller<MOVE>{
 	    if (newIndex == -1) { return false; }
 	    n = newIndex;
 	}	
-
 	return false;
+
     }
 
     private boolean edible(Game copy, int n, MOVE dir){
+	/*
+	//is the closest edible ghost on a path starting at dir?
+	int minDist = Integer.MAX_VALUE;
+	int closestG = -1;
+	for(GHOST g: GHOST.values()){
+	    int gnode = copy.getGhostCurrentNodeIndex(g);
+	    int dist = copy.getShortestPathDistance(pnode,gnode);
+	    if (copy.isGhostEdible(g) &&
+		dist < minDist){
+		minDist = dist;
+		closestG = gnode;
+	    }
+	}
+
+	if (closestG == -1) { return false; }
+	return copy.getNextMoveTowardsTarget(pnode,closestG,DM.PATH) == dir;
+	*/
+
 	//Scan to the dir and see if there is an edible ghost
 	while (! copy.isJunction(n)) {
 	    for(GHOST g: GHOST.values()){
@@ -172,8 +220,8 @@ public class Qlearner extends Controller<MOVE>{
 	    n = copy.getNeighbour(n,dir);
 
 	}	
-
 	return false;
+
     }
 
     private int directionalData(Game copy, int pnode, MOVE dir){
@@ -221,7 +269,7 @@ public class Qlearner extends Controller<MOVE>{
 	    case 4://incoming danger
 		r -= 5;
 		break;
-	    case 3://incoming edible
+	    case 3://edible
 		r += 5;
 		break;
 	    case 2://pill
